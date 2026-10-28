@@ -140,7 +140,7 @@
 
                 <td>
                 <div class="w3-grey">
-                  <div class="w3-container w3-left w3-green" style=" min-width:0, max-width:200, width:{{ schedule_item.progression_rate }}">{{ schedule_item.progression_rate }}%</div>
+                  <div class="w3-container w3-left w3-green" style="width:clamp(0%, {{ schedule_item.progression_rate|default_if_none:0 }}%, 100%)">{{ schedule_item.progression_rate }}%</div>
                 </div>
               </td>
             </tr>
@@ -317,7 +317,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('formModal').style.display = 'block';
     })
     .catch(error => {
-        console.error('Error:', error);
+        const formContainer = document.getElementById('formContainer');
+        formContainer.textContent = 'Impossible de charger le formulaire. Vérifiez votre connexion.';
+        document.getElementById('formModal').style.display = 'block';
     });
 }
 // Function to handle tab switching

@@ -84,6 +84,6 @@ urlpatterns = [
     path('stock/', views.get_stock, name='etat_stocks'),
     path('stock/emplacements/', views.get_emplacements, name='emplacements'),
     path('stock/assign_stock/', views.assign_stock, name='assign_stock'),
-    path('stock/assign_stock/delete_assignment/<int:assignment_Id>/', views.delete_assignment, name='delete_assignment'),
+    path('stock/assign_stock/delete_assignment/<int:assignment_id>/', views.delete_assignment, name='delete_assignment'),
 
 ]

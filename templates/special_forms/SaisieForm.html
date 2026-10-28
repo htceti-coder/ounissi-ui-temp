@@ -5,7 +5,7 @@
     {% csrf_token %}
     <div>
         <label for="number_of_lines">Nombre de Lignes dans la Facture/BL:</label>
-        <input id="number_of_lines" name="number_of_lines" type="number" required>
+        <input id="number_of_lines" name="number_of_lines" type="number" min="1" oninput="distributeLines({{ items_list }})" required>
     </div>
     <div>
         <label for="employee1">Employee 1:</label>
@@ -16,9 +16,9 @@
             {% endfor %}
         </select>
 
-        <span>Lignes: <input id="start1" name="employee1_range_start" size="3" ></span>
-        <span>A: <input id="end1" name="employee1_range_end" size="3"></span>
-        <span><a>Temps requis:</a><a id="number1">--:--:--</a></span>
+        <span>Lignes: <input id="start1" name="employee1_range_start" type="number" min="1" size="3" oninput="updateRangeDurations({{ items_list }})"></span>
+        <span>A: <input id="end1" name="employee1_range_end" type="number" min="1" size="3" oninput="updateRangeDurations({{ items_list }})"></span>
+        <span><a>Durée affectée :</a><a id="number1">--:--:--</a></span>
 <!--        <input type="hidden" id="item1_time" name="item1_time">-->
     </div>
     <div>
@@ -30,9 +30,9 @@
             {% endfor %}
         </select>
 
-        <span>Lignes: <input id="start2" name="employee2_range_start" size="3"></span>
-        <span>A: <input id="end2" name="employee2_range_end" size="3"></span>
-        <span><a>Temps requis:</a><a id="number2">--:--:--</a></span>
+        <span>Lignes: <input id="start2" name="employee2_range_start" type="number" min="1" size="3" oninput="updateRangeDurations({{ items_list }})"></span>
+        <span>A: <input id="end2" name="employee2_range_end" type="number" min="1" size="3" oninput="updateRangeDurations({{ items_list }})"></span>
+        <span><a>Durée affectée :</a><a id="number2">--:--:--</a></span>
 
     </div>
         <div>
@@ -44,9 +44,9 @@
             {% endfor %}
         </select>
 
-        <span>Lignes: <input id="start3" name="employee3_range_start" size="3"></span>
-        <span>A: <input id="end3" name="employee3_range_end" size="3"></span>
-        <span><a>Temps requis:</a><a id="number3">--:--:--</a></span>
+        <span>Lignes: <input id="start3" name="employee3_range_start" type="number" min="1" size="3" oninput="updateRangeDurations({{ items_list }})"></span>
+        <span>A: <input id="end3" name="employee3_range_end" type="number" min="1" size="3" oninput="updateRangeDurations({{ items_list }})"></span>
+        <span><a>Durée affectée :</a><a id="number3">--:--:--</a></span>
     </div>
     <input type="hidden" name="supplier" value="{{ original_task.supplier }}">
     <input type="hidden" name="ref_tiers" value="{{ original_task.ref_tiers }}">

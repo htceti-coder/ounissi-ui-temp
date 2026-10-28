@@ -1,10 +1,17 @@
-<!-- templates/salary_item_list.html -->
-<h1>Salary Items</h1>
-<ul>
-  {% for salary_item in salary_items %}
-    <li>{{ salary_item.name }} - {{ salary_item.item_type }}</li>
-  {% empty %}
-    <li>No salary items found.</li>
-  {% endfor %}
-</ul>
-<a href="{% url 'salary_item_create' %}">Create Salary Item</a>
+{% extends 'base2.html' %}
+{% block title %}Rubriques de paie{% endblock %}
+{% block content %}
+<h1>Rubriques de paie</h1>
+{% if user.is_staff %}
+  <p><a href="{% url 'admin:ounissi_app_salaryitem_changelist' %}">Gérer les rubriques dans l’administration</a></p>
+{% endif %}
+<table class="w3-table w3-striped w3-white w3-border filtertable">
+  <thead><tr><th>Rubrique</th><th>Type</th><th>Calcul</th><th>Rubrique liée</th><th>Valeur par défaut</th></tr></thead>
+  <tbody>
+    {% for item in salary_items %}
+    <tr><td>{{ item.name }}</td><td>{{ item.get_item_type_display }}</td><td>{{ item.get_calculation_type_display }}</td><td>{{ item.dependent_item|default_if_none:'—' }}</td><td>{{ item.default_value }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if not salary_items %}<p>Aucune rubrique de paie configurée.</p>{% endif %}
+{% endblock %}

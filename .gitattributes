@@ -1,0 +1,5 @@
+# Existing project sources use a mix of CRLF and LF line endings.
+# Treat CRLF as an end-of-line marker when checking whitespace.
+*.py whitespace=cr-at-eol
+*.html whitespace=cr-at-eol
+*.js whitespace=cr-at-eol

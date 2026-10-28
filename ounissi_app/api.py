@@ -1,8 +1,11 @@
 from django.utils import timezone
 from ninja import NinjaAPI, Schema
+from ninja.security import django_auth
 from typing import List, Optional
 from accounts.models import Employee
-from .models import Timesheet, UserSyncLog, ReceptionTask, ScheduleItem, ReceptionProcess
+from .models import Timesheet, UserSyncLog
+from .utils import can_manage_timesheets
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from datetime import datetime
@@ -26,8 +29,10 @@ class TimesheetRowSchema(Schema):
 
 
 # 2. Unified Bulk Update/Create Endpoint
-@ninja_api.post("/timesheets/bulk-validate")
+@ninja_api.post("/timesheets/bulk-validate", auth=django_auth)
 def bulk_update_timesheets(request, data: List[TimesheetRowSchema]):
+    if not can_manage_timesheets(request):
+        return JsonResponse({"detail": "Vous n’êtes pas autorisé à valider les pointages."}, status=403)
     updated_count = 0
 
     with transaction.atomic():
@@ -63,7 +68,7 @@ def bulk_update_timesheets(request, data: List[TimesheetRowSchema]):
 
     return {"status": "success", "message": f"Processed {updated_count} lines successfully."}
 
-@ninja_api.post("/timesheets/sync-my-data")
+@ninja_api.post("/timesheets/sync-my-data", auth=django_auth)
 def sync_my_data(request):
     user = request.user
     today = timezone.localtime().date()
@@ -104,45 +109,10 @@ class BulkAssignSchema(Schema):
 
 @ninja_api.post("/reception/bulk-assign-task")
 def bulk_assign_task(request, data: BulkAssignSchema):
-    """
-    Manager Control Tower: Assigns a team to a specific task step
-    across multiple selected invoices.
-    """
-    # 1. Fetch the target entities
-    processes = ReceptionProcess.objects.filter(id__in=data.process_ids)
-    employees = Employee.objects.filter(id__in=data.employee_ids)
-
-    if not processes.exists():
-        return {"status": "error", "message": "Aucun processus sélectionné."}
-
-    with transaction.atomic():
-        for proc in processes:
-            # 2. Get or create the specific task for this process
-            # (Ensures placeholders exist even if auto-initialization missed one)
-            task, created = ReceptionTask.objects.get_or_create(
-                process=proc,
-                task_step=data.task_step
-            )
-
-            # 3. Assign the team (Clears previous and sets new)
-            task.employees.set(employees)
-            task.status = 'ASSIGNED'
-            task.save()
-
-            # 4. Push to ScheduleItems
-            # This makes the task appear on the employee's personal dashboard
-            for emp in employees:
-                ScheduleItem.objects.get_or_create(
-                    employee=emp,
-                    # We use the display name for the schedule entry
-                    task_name=f"{task.get_task_step_display()} : {proc.supplier}",
-                    date=timezone.now().date(),
-                    status="ASSIGNED",
-                    # Link to the process ID for easy lookup in the employee view
-                    related_id=proc.id
-                )
-
-    return {
-        "status": "success",
-        "message": f"Assignation réussie pour {processes.count()} factures."
-    }
+    # The experimental V3 task does not yet have a defined mapping to the
+    # application's Schedule/Task/ScheduleItem models.  Do not claim success
+    # or create partial assignments until that mapping is specified.
+    return JsonResponse({
+        "status": "error",
+        "message": "L’affectation V3 n’est pas encore reliée au TRT. Utilisez le suivi du TRT actif."
+    }, status=503)

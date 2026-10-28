@@ -9,7 +9,9 @@
   <div class="w3-panel">
     <div class="w3-row-padding" style="margin:0 -16px">
       <div>
-        {% if not current_schedule %}
+        {% if not logged_data.employee %}
+        <div class="app-alert app-alert--warning" role="alert"><span>Aucun profil d’employé n’est associé à ce compte.</span></div>
+        {% elif not current_schedule %}
         <h5 style="color:red">Pas de TRT en cours</h5>
         {% else %}
         <h5>TRT en Cours</h5>
@@ -37,7 +39,7 @@
               <td>{{ progression }}</td>
               <td>
                 <div class="w3-grey">
-                  <div class="w3-container w3-left w3-green" style="width:{{ schedule_item.progression_rate }}">{{ schedule_item.progression_rate }}%</div>
+                  <div class="w3-container w3-left w3-green" style="width:clamp(0%, {{ schedule_item.progression_rate|default_if_none:0 }}%, 100%)">{{ schedule_item.progression_rate }}%</div>
                 </div>
               </td>
             </tr>
@@ -59,12 +61,12 @@
       <tr>
         <td width="90%">{{ task_saisie.task_name }}</td>
         <td>
-          <form id="form_lookup_form" method="post">
+          <form class="form_lookup_form" method="post" action="{% url 'get_model_form' %}">
             {% csrf_token %}
             <input type="hidden" name="task_id" value="{{ task_saisie.id }}">
             <input type="hidden" name="employee_id" value="{{ logged_data.employee.id }}">
             <input type="hidden" name="selected_schedule" value="{{ selected_schedule.id }}">
-            <button type="button" class="form_lookup_button" style="form_lookup_button btn bg-transparent btn-outline-primary"><i class="fa fa-plus"></i></button>
+            <button type="button" class="form_lookup_button btn bg-transparent btn-outline-primary" aria-label="Ouvrir le formulaire"><i class="fa fa-plus"></i></button>
           </form>
         </td>
       </tr>
@@ -86,7 +88,7 @@
             <input type="hidden" name="schedule" value="{{ selected_schedule.id }}">
             <input type="hidden" name="assigned_time" value="{{ task_demande.average_duration }}">
             <input type="hidden" name="progression_rate" value="100">
-            <button type="submit" style="btn bg-transparent btn-outline-primary"><i class="fa fa-plus"></i></button>
+            <button type="submit" class="btn bg-transparent btn-outline-primary" aria-label="Ajouter la tâche"><i class="fa fa-plus"></i></button>
           </form>
         </td>
       </tr>
@@ -102,7 +104,7 @@
         <h2>Task Form</h2>
       </header>
       <div id="formContainer" class="w3-container">
-        {% include 'tasks/model_form.html' %}
+        {# The selected task's form is loaded here. #}
       </div>
       <footer class="w3-container w3-teal">
         <button type="submit" form="modelForm">Submit</button>
@@ -125,9 +127,10 @@ function submitForm(event) {
   event.preventDefault(); // Prevent default form submission
 
   // Serialize form data
-  const formData = new FormData(document.getElementById('form_lookup_form'));
+  const form = event.currentTarget.closest('form');
+  const formData = new FormData(form);
 
-  fetch('/get_model_form', {
+  fetch(form.action, {
     method: 'POST',
     body: formData,
     headers: {
@@ -135,14 +138,24 @@ function submitForm(event) {
       'X-CSRFToken': '{{ csrf_token }}'
     }
   })
-  .then(response => response.text())
+  .then(response => {
+    if (response.headers.get('content-type')?.includes('application/json')) {
+      return response.json().then(data => { throw new Error(data.message || 'Impossible de charger le formulaire.'); });
+    }
+    if (!response.ok) throw new Error('Impossible de charger le formulaire.');
+    return response.text();
+  })
   .then(data => {
     // Add the form to the modal
     document.getElementById('formContainer').innerHTML = data;
     // Show the modal
     document.getElementById('formModal').style.display = 'block';
   })
-  .catch(error => console.error('Error:', error));
+  .catch(error => {
+    const container = document.getElementById('formContainer');
+    container.textContent = error.message || 'Impossible de charger le formulaire.';
+    document.getElementById('formModal').style.display = 'block';
+  });
 }
 </script>
 {% endblock %}

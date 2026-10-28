@@ -46,7 +46,7 @@
                      <a href="{% url 'request_leave' %}" class="w3-button w3-amber w3-round">🌴 Demander un congé</a>
 
                      <button type="button" id="sync-btn" onclick="triggerSync()"
-                            class="w3-button w3-blue w3-round w3-margin-left {% if remaining_syncs == 0 %}w3-disabled{% endif %}">
+                            class="w3-button w3-blue w3-round w3-margin-left {% if remaining_syncs == 0 %}w3-disabled{% endif %}" {% if remaining_syncs == 0 %}disabled{% endif %}>
                         🔄 Sync Terminal ({{ remaining_syncs }} restants)
                      </button>
                 </div>
@@ -114,17 +114,24 @@
 <script>
 async function triggerSync() {
     const btn = document.getElementById('sync-btn');
+    const original = btn.textContent;
     btn.disabled = true;
-    btn.innerHTML = "⏳ Connexion au terminal...";
-
-    const response = await fetch("/api/timesheets/sync-my-data", {
-        method: "POST",
-        headers: { "X-CSRFToken": "{{ csrf_token }}" }
-    });
-
-    const result = await response.json();
-    alert(result.message);
-    location.reload();
+    btn.textContent = 'Connexion au terminal…';
+    try {
+        const response = await fetch("{% url 'api-1.0.0:sync_my_data' %}", {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        });
+        if (!response.ok) throw new Error('La synchronisation a échoué.');
+        const result = await response.json();
+        alert(result.message);
+        if (result.status === 'success') location.reload();
+        else { btn.disabled = false; btn.textContent = original; }
+    } catch (error) {
+        alert('Impossible de contacter le service de synchronisation.');
+        btn.disabled = false;
+        btn.textContent = original;
+    }
 }
 </script>
 {% endblock %}

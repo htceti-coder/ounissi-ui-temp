@@ -391,171 +391,6 @@
     }
 
     /* ------------------------------------------------------------------ */
-    /* "Tuple tables" — Stock / Emplacements                               */
-    /* ------------------------------------------------------------------ */
-    /* Root cause of the horizontal rendering: the template prints each raw
-       database record  ('BNA1', 'PHARMACIE …', Decimal('19.00'))  as ONE
-       <td> inside ONE <tr>, so every record becomes a column instead of a
-       row. The header only has 5 <th>, the body row has N cells.
-       This normaliser rebuilds the <tbody> so that every record becomes a
-       <tr> and every tuple element becomes a <td>, then (re)initialises
-       DataTables. Templates and views are left untouched.               */
-
-    function looksLikePythonTuple(text) {
-        if (!text) return false;
-        var t = text.trim();
-        if (t.length < 4) return false;
-        var open = t.charAt(0), close = t.charAt(t.length - 1);
-        if (!((open === "(" && close === ")") || (open === "[" && close === "]"))) return false;
-        return /['"]|Decimal\(|datetime\.|\bNone\b/.test(t);
-    }
-
-    function parsePythonLiteral(text) {
-        var s = text.trim(), i = 0, n = s.length;
-
-        function pad(v, len) { var str = String(v == null ? "" : v); len = len || 2; while (str.length < len) str = "0" + str; return str; }
-        function skipWs() { while (i < n && /\s/.test(s.charAt(i))) i++; }
-
-        function parseString(q) {
-            i++;
-            var out = "";
-            while (i < n) {
-                var c = s.charAt(i);
-                if (c === "\\" && i + 1 < n) { out += s.charAt(i + 1); i += 2; continue; }
-                if (c === q) { i++; break; }
-                out += c; i++;
-            }
-            return out;
-        }
-
-        function parseSeq(closer) {
-            i++;
-            var out = [];
-            skipWs();
-            while (i < n && s.charAt(i) !== closer) {
-                out.push(parseValue());
-                skipWs();
-                if (s.charAt(i) === ",") { i++; skipWs(); }
-            }
-            if (s.charAt(i) === closer) i++;
-            return out;
-        }
-
-        function parseArgs() {
-            var out = [];
-            skipWs();
-            while (i < n && s.charAt(i) !== ")") {
-                out.push(parseValue());
-                skipWs();
-                if (s.charAt(i) === ",") { i++; skipWs(); }
-            }
-            if (s.charAt(i) === ")") i++;
-            return out;
-        }
-
-        function parseValue() {
-            skipWs();
-            var c = s.charAt(i);
-            if (c === "(" || c === "[") return parseSeq(c === "(" ? ")" : "]");
-            if (c === "'" || c === '"') return parseString(c);
-            if (s.substr(i, 8) === "Decimal(") { i += 8; skipWs(); var d = parseValue(); skipWs(); if (s.charAt(i) === ")") i++; return String(d); }
-            if (s.substr(i, 18) === "datetime.datetime(") { i += 18; var dt = parseArgs(); return pad(dt[0], 4) + "-" + pad(dt[1]) + "-" + pad(dt[2]) + " " + pad(dt[3] || 0) + ":" + pad(dt[4] || 0); }
-            if (s.substr(i, 14) === "datetime.date(") { i += 14; var da = parseArgs(); return pad(da[0], 4) + "-" + pad(da[1]) + "-" + pad(da[2]); }
-            if (s.substr(i, 14) === "datetime.time(") { i += 14; var tm = parseArgs(); return pad(tm[0] || 0) + ":" + pad(tm[1] || 0); }
-            if (s.substr(i, 4) === "None") { i += 4; return null; }
-            if (s.substr(i, 4) === "True") { i += 4; return true; }
-            if (s.substr(i, 5) === "False") { i += 5; return false; }
-            var start = i;
-            while (i < n && !/[,)\]]/.test(s.charAt(i))) i++;
-            return s.substring(start, i).trim();
-        }
-
-        try { return parseValue(); } catch (error) { return null; }
-    }
-
-    function formatPyValue(v) {
-        if (v === null || v === undefined) return "—";
-        if (v === true) return "Oui";
-        if (v === false) return "Non";
-        if (Array.isArray(v)) return v.map(formatPyValue).join(" / ");
-        return String(v);
-    }
-
-    function normalizeTupleTables(scope) {
-        selectAll("table", scope || document).forEach(function (table) {
-            if (table.dataset.uiNormalized === "true" || table.hasAttribute("data-no-normalize")) return;
-            var tbody = table.tBodies && table.tBodies[0];
-            if (!tbody) return;
-
-            var rows = Array.prototype.slice.call(tbody.rows);
-            if (!rows.length) return;
-
-            var records = [], tupleCells = 0, totalCells = 0;
-            rows.forEach(function (row) {
-                Array.prototype.slice.call(row.cells).forEach(function (cell) {
-                    totalCells++;
-                    var text = (cell.textContent || "").trim();
-                    if (!looksLikePythonTuple(text)) return;
-                    var value = parsePythonLiteral(text);
-                    if (!Array.isArray(value) || !value.length) return;
-                    if (value.every(Array.isArray)) {          // [(…), (…)]  → several records
-                        tupleCells++;
-                        value.forEach(function (record) { records.push(record); });
-                    } else if (value.length >= 2) {            // (…)          → one record
-                        tupleCells++;
-                        records.push(value);
-                    }
-                });
-            });
-
-            if (!tupleCells || tupleCells < totalCells * 0.8 || !records.length) return;
-
-            var thead = table.tHead;
-            var headerRow = thead && thead.rows.length ? thead.rows[thead.rows.length - 1] : null;
-            var headerCount = headerRow ? headerRow.cells.length : 0;
-            var width = records.reduce(function (m, r) { return Math.max(m, r.length); }, headerCount);
-
-            [headerRow, table.tFoot && table.tFoot.rows.length ? table.tFoot.rows[0] : null].forEach(function (hr) {
-                if (!hr) return;
-                for (var k = hr.cells.length; k < width; k++) {
-                    var th = document.createElement("th");
-                    th.textContent = "Col " + (k + 1);
-                    hr.appendChild(th);
-                }
-            });
-
-            var wasDataTable = false;
-            if ($ && $.fn && $.fn.DataTable && $.fn.DataTable.isDataTable(table)) {
-                wasDataTable = true;
-                $(table).DataTable().destroy();
-            }
-
-            var newBody = document.createElement("tbody");
-            records.forEach(function (record) {
-                var tr = document.createElement("tr");
-                for (var c = 0; c < width; c++) {
-                    var td = document.createElement("td");
-                    var v = record[c];
-                    td.textContent = c < record.length ? formatPyValue(v) : "";
-                    if (typeof v === "string" && /^-?\d+([.,]\d+)?$/.test(v)) td.classList.add("num");
-                    tr.appendChild(td);
-                }
-                newBody.appendChild(tr);
-            });
-            tbody.parentNode.replaceChild(newBody, tbody);
-
-            table.dataset.uiNormalized = "true";
-            table.dataset.uiTupleRecords = String(records.length);
-
-            if (wasDataTable || table.classList.contains("filtertable")) {
-                if ($ && $.fn && $.fn.DataTable && !$.fn.DataTable.isDataTable(table)) {
-                    $(table).DataTable(dataTableOptions());
-                }
-            }
-        });
-    }
-
-    /* ------------------------------------------------------------------ */
     /* Sidebar: place auto-generated links in the right section            */
     /* ------------------------------------------------------------------ */
     /* Any sidebar link WITHOUT data-nav-fixed (or inside [data-nav-auto])
@@ -887,8 +722,8 @@
             queued = true;
             window.requestAnimationFrame(function () {
                 queued = false;
-                normalizeTupleTables(content);
                 initializeChosen(content);
+                initializeDataTables(content);
                 enhanceTables(content);
                 enhanceProgressBars(content);
                 colorEmptyCells(content);
@@ -941,14 +776,21 @@
 
         if ($) {
             $(document).on("ajaxSend.ounissi", requestStart);
-            $(document).on("ajaxComplete.ounissi ajaxError.ounissi", requestEnd);
+            // ajaxComplete fires for both success and failure; also counting
+            // ajaxError would finish the same request twice.
+            $(document).on("ajaxComplete.ounissi", requestEnd);
         }
 
         selectAll("form").forEach(function (form) {
-            form.addEventListener("submit", function () {
+            form.addEventListener("submit", function (event) {
                 if (form.target === "_blank") return;
+                if (event.submitter && event.submitter.name === "export") return;
                 if (typeof form.checkValidity === "function" && !form.checkValidity()) return;
-                requestStart();
+                // Other handlers may cancel submission to perform an AJAX request.
+                // Check after all listeners ran so the progress bar cannot stick.
+                window.setTimeout(function () {
+                    if (!event.defaultPrevented) requestStart();
+                }, 0);
             });
         });
 
@@ -1002,13 +844,6 @@
             });
         });
 
-        var notifications = select("[data-notifications-toggle]");
-        if (notifications) {
-            notifications.addEventListener("click", function () {
-                UI.toast("Tous les services sont opérationnels.", "fa fa-bell-o");
-            });
-        }
-
         selectAll("a[data-unwired-route]").forEach(function (link) {
             link.addEventListener("click", function (event) {
                 var routeName = link.getAttribute("data-unwired-route");
@@ -1061,7 +896,6 @@
 
         initCommandPalette();
         initPopupLinks();             // before initRequestFeedback so preventDefault is honoured
-        normalizeTupleTables(document); // must run BEFORE DataTables caches the DOM
         initializeChosen(document);
         initializeDataTables(document);
         enhanceTables(document);
