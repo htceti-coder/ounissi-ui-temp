@@ -104,7 +104,7 @@ class ReceptionWorkflowTests(TestCase):
         self.assertContains(response, self.tasks[1].task_name)
         self.assertIn(pending.pk, [item.pk for item in response.context['non_assigned_items']])
         fragment = self.client.post(reverse('get_special_form'), {'task_id': self.tasks[1].pk, 'schedule_item': pending.pk})
-        self.assertContains(fragment, 'Nombre de Lignes')
+        self.assertContains(fragment, 'Nombre de lignes de la facture')
         self.assertContains(fragment, f'value="{reception.pk}"')
         self.assertContains(fragment, 'Fournisseur Test')
 

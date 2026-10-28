@@ -5,58 +5,33 @@
 
 {% block content %}
 
-<style>
-  /* Basic styles for tabs */
-  .tab {
-    cursor: pointer;
-    padding: 10px;
-    width: 20%;
-    border: 1px solid #ccc;
-    display: inline-block;
-    background-color: #f9f9f9;
-  }
-  .tab:hover {
-    background-color: #ddd;
-  }
-  .tab.active {
-    background-color: #fff;
-    border-bottom: none;
-    font-weight: bold;
-  }
-  .table-container {
-    display: none;
-    border: 1px solid #ccc;
-    padding: 10px;
-  }
-  .table-wrapper {
-    margin: 10px;
-  }
-</style>
 <h1>Choisir un TRT pour voir les Details</h1>
 <form method="get" action="">
     {{ schedule_filter_form.as_p }}
     <button type="submit" class="btn btn-success">Valider</button>
 </form>
 {% if selected_schedule %}
+<div class="trt-actions">
 <form method="post" action="{% url 'update_schedule_now' schedule_id=selected_schedule.id %}">
     {% csrf_token %}
     <button type="submit"><i class="fa fa-refresh" aria-hidden="true"></i> Actualiser les tâches automatiques</button>
 </form>
 <form method="post" action="{% url 'finalize_schedule' schedule_id=selected_schedule.id %}">
     {% csrf_token %}
-    <button type="submit" class="btn btn-primary">Finalize and Close Schedule</button>
+    <button type="submit" class="btn btn-primary">Clôturer le TRT</button>
 </form>
-
-<div class="tabs">
-  <div class="tab active" onclick="openTab(event, 'Details')">Details TRT</div>
-  <div class="tab" onclick="openTab(event, 'Employees')">Employees</div>
-  <div class="tab" onclick="openTab(event, 'Tasks')">Taches</div>
-<!--  <div class="tab" onclick="openTab(event, 'Progress')">Progression</div>-->
 </div>
 
-<div id="Details" class="table-container" style="display: block;">
+<div class="tabs" role="tablist" aria-label="Détails du TRT">
+  <button type="button" id="tab-Details" class="tab active" role="tab" aria-controls="Details" aria-selected="true" tabindex="0" onclick="openTab(event, 'Details')">Détails TRT</button>
+  <button type="button" id="tab-Employees" class="tab" role="tab" aria-controls="Employees" aria-selected="false" tabindex="-1" onclick="openTab(event, 'Employees')">Employés</button>
+  <button type="button" id="tab-Tasks" class="tab" role="tab" aria-controls="Tasks" aria-selected="false" tabindex="-1" onclick="openTab(event, 'Tasks')">Tâches</button>
+<!--  <button type="button" id="tab-Progress" class="tab" role="tab" aria-controls="Progress" aria-selected="false" onclick="openTab(event, 'Progress')">Progression</button>-->
+</div>
 
-<h2>Taches Manuelles</h2>
+<div id="Details" class="table-container" role="tabpanel" aria-labelledby="tab-Details" style="display: block;">
+
+<h2>Tâches manuelles</h2>
 {% if can_manage_trt %}{% include 'schedule/bulk_manual_toolbar.html' with source='selected' %}{% endif %}
 <table class="filtertable" data-manual-table>
     <thead>
@@ -83,8 +58,8 @@
 </table>
 {% if can_manage_trt %}<div class="bulk-manual-bottom">{% include 'schedule/bulk_manual_submit.html' %}</div>{% endif %}
 <br>
-<h2>Taches Auto</h2>
-<table class="filtertable" style="width: 100%; table-layout: fixed;">
+<h2>Tâches automatiques</h2>
+<table class="filtertable">
     <thead>
         <tr>
             <th>Employee</th>
@@ -125,7 +100,7 @@
 </div>
 
 <!-- Tab content for Employees -->
-<div id="Employees" class="table-container">
+<div id="Employees" class="table-container" role="tabpanel" aria-labelledby="tab-Employees">
       <h3>Details des Employees</h3>
   <table class="filtertable" id="EmployeeTable">
     <thead>
@@ -150,7 +125,7 @@
     </tbody>
   </table>
 </div>
-<div id="Tasks" class="table-container">
+<div id="Tasks" class="table-container" role="tabpanel" aria-labelledby="tab-Tasks">
     <h2>Details des Taches</h2>
   <table class="filtertable" id="TasksTable">
     <thead>
@@ -252,20 +227,15 @@
 <script>
 // Function to handle tab switching
 function openTab(evt, tabName) {
-  // Get all elements with class="table-container"
-  const tabcontent = document.getElementsByClassName("table-container");
-
-  // Loop through each tab content
-  for (let i = 0; i < tabcontent.length; i++) {
-    // Hide only elements that are not the clicked tab
-    if (tabcontent[i].id !== tabName) {
-      tabcontent[i].style.display = "none";
-    }
-  }
-
-  // Show the current tab, and add an "active" class to the button that opened the tab
-  document.getElementById(tabName).style.display = "block";
-  evt.currentTarget.className += " active";
+  document.querySelectorAll('.table-container[role="tabpanel"]').forEach(function (panel) {
+    panel.style.display = panel.id === tabName ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tabs [role="tab"]').forEach(function (tab) {
+    const active = tab === evt.currentTarget;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+  });
 }
 
 </script>

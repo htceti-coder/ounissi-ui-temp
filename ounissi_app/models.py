@@ -9,6 +9,21 @@ from accounts.models import Employee, Rank
 User = get_user_model()
 
 
+class NavigationVisibility(models.Model):
+    """Stored overrides for the sidebar; missing rows use the built-in defaults."""
+    item_key = models.CharField(max_length=80, unique=True, verbose_name='Élément du menu')
+    show_user = models.BooleanField(default=False, verbose_name='Utilisateur')
+    show_leader = models.BooleanField(default=False, verbose_name='Responsable d’équipe')
+    show_admin = models.BooleanField(default=False, verbose_name='Administrateur')
+
+    class Meta:
+        verbose_name = 'Visibilité du menu'
+        verbose_name_plural = 'Visibilité du menu'
+
+    def __str__(self):
+        return self.item_key
+
+
 class Timesheet(models.Model):
     # Encapsulated choices using TextChoices
     class LeaveType(models.TextChoices):

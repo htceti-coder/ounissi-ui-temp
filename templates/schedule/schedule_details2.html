@@ -2,57 +2,25 @@
 {% load custom_filters %}
 {% load static %}
 {% block content %}
-<style>
-  /* Basic styles for tabs */
-  .tab {
-    cursor: pointer;
-    padding: 10px;
-    width: 20%;
-    border: 1px solid #ccc;
-    display: inline-block;
-    background-color: #f9f9f9;
-  }
-
-  .tab:hover {
-    background-color: #ddd;
-  }
-
-  .tab.active {
-    background-color: #fff;
-    border-bottom: none;
-    font-weight: bold;
-
-  }
-
-  .table-container {
-    display: none;
-    border: 1px solid #ccc;
-    padding: 10px;
-  }
-
-  .table-wrapper {
-    margin: 10px;
-  }
-</style>
-<h1>Plannification TRT</h1>
+<h1>Planification TRT</h1>
 <form method="post">
   {% csrf_token %}
   {{ form.as_p }}
-  <button type="submit">Choisir un Model</button>
+  <button type="submit">Choisir un modèle</button>
 </form>
 
 {% if selected_schedule %}
-<h2>Details du TRT</h2>
-<p>Verifier les details du TRT avant sauvegarde</p>
-<div class="tabs">
-  <div class="tab active" onclick="openTab(event, 'Details')">Details TRT</div>
-  <div class="tab" onclick="openTab(event, 'Employees')">Employees</div>
-  <div class="tab" onclick="openTab(event, 'Tasks')">Taches</div>
-  <div class="tab" onclick="openTab(event, 'Options')">Options</div>
+<h2>Détails du TRT</h2>
+<p>Vérifiez les détails du TRT avant l’enregistrement</p>
+<div class="tabs" role="tablist" aria-label="Détails du TRT">
+  <button type="button" id="tab-Details" class="tab active" role="tab" aria-controls="Details" aria-selected="true" tabindex="0" onclick="openTab(event, 'Details')">Détails TRT</button>
+  <button type="button" id="tab-Employees" class="tab" role="tab" aria-controls="Employees" aria-selected="false" tabindex="-1" onclick="openTab(event, 'Employees')">Employés</button>
+  <button type="button" id="tab-Tasks" class="tab" role="tab" aria-controls="Tasks" aria-selected="false" tabindex="-1" onclick="openTab(event, 'Tasks')">Tâches</button>
+  <button type="button" id="tab-Options" class="tab" role="tab" aria-controls="Options" aria-selected="false" tabindex="-1" onclick="openTab(event, 'Options')">Options</button>
 </div>
 
 <!-- Tab content for Details -->
-<div id="Details" class="table-container" style="display: block;">
+<div id="Details" class="table-container" role="tabpanel" aria-labelledby="tab-Details" style="display: block;">
 
   <table class="filtertable" id="ItemsTable">
     <thead>
@@ -83,7 +51,7 @@
 </div>
 
 <!-- Tab content for Employees -->
-<div id="Employees" class="table-container">
+<div id="Employees" class="table-container" role="tabpanel" aria-labelledby="tab-Employees">
   <h3>Details des Employees</h3>
   <table class="filtertable" id="EmployeeTable">
     <thead>
@@ -108,7 +76,7 @@
 </div>
 
 <!-- Tab content for Tasks -->
-<div id="Tasks" class="table-container">
+<div id="Tasks" class="table-container" role="tabpanel" aria-labelledby="tab-Tasks">
   <h2>Details des Taches</h2>
   <table class="filtertable" id="TasksTable">
     <thead>
@@ -137,17 +105,17 @@
 </div>
 
 <!-- Placeholder for future tables -->
-<div id="Options" class="table-container">
-  <h2>Schedule Options</h2>
+<div id="Options" class="table-container" role="tabpanel" aria-labelledby="tab-Options">
+  <h2>Options du TRT</h2>
   <form id="create_schedule_form" method="post" action="{% url 'create_schedule' %}">
     {% csrf_token %}
-    <label for="schedule_date">Schedule Date:</label>
+    <label for="schedule_date">Date du TRT :</label>
     <input type="date" id="schedule_date" name="schedule_date" required><br><br>
 
-    <label for="start_time">Start Time:</label>
+    <label for="start_time">Heure de début :</label>
     <input type="time" id="start_time" name="start_time" value="{{ start_time|time:'H:i' }}" required><br><br>
 
-    <label for="end_time">End Time:</label>
+    <label for="end_time">Heure de fin :</label>
     <input type="time" id="end_time" name="end_time" value="{{ end_time|time:'H:i' }}" required><br><br>
 
     <!-- Hidden input fields to store data from other tabs -->
@@ -155,7 +123,7 @@
     <input type="hidden" id="employees_data" name="employees">
     <input type="hidden" id="scheduleItems_data" name="scheduleItems">
 
-    <button type="button" onclick="prepareFormDataAndSubmit()">Create Schedule</button>
+    <button type="button" onclick="prepareFormDataAndSubmit()">Créer le TRT</button>
   </form>
 </div>
 
@@ -163,24 +131,15 @@
 
 <script>
 function openTab(evt, tabName) {
-  // Declare all variables
-  var i, tabcontent, tablinks;
-
-  // Get all elements with class="table-container" and hide them
-  tabcontent = document.getElementsByClassName("table-container");
-  for (i = 0; i < tabcontent.length; i++) {
-    tabcontent[i].style.display = "none";
-  }
-
-  // Get all elements with class="tab" and remove the class "active"
-  tablinks = document.getElementsByClassName("tab");
-  for (i = 0; i < tablinks.length; i++) {
-    tablinks[i].className = tablinks[i].className.replace(" active", "");
-  }
-
-  // Show the current tab, and add an "active" class to the button that opened the tab
-  document.getElementById(tabName).style.display = "block";
-  evt.currentTarget.className += " active";
+  document.querySelectorAll('.table-container[role="tabpanel"]').forEach(function (panel) {
+    panel.style.display = panel.id === tabName ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tabs [role="tab"]').forEach(function (tab) {
+    const active = tab === evt.currentTarget;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+  });
 }
 
 function prepareFormDataAndSubmit() {
@@ -238,7 +197,8 @@ console.log(scheduleItemsData);
 
 document.addEventListener("DOMContentLoaded", function() {
     var currentDate = new Date().toISOString().split('T')[0];
-    document.getElementById("schedule_date").value = currentDate;
+    var scheduleDate = document.getElementById("schedule_date");
+    if (scheduleDate && !scheduleDate.value) scheduleDate.value = currentDate;
 });
 
 </script>

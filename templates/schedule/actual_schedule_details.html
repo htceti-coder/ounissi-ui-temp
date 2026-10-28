@@ -5,94 +5,51 @@
 
 {% block content %}
 
-<style>
-  /* Basic styles for tabs */
-  .tab {
-    cursor: pointer;
-    padding: 10px;
-    width: 20%;
-    border: 1px solid #ccc;
-    display: inline-block;
-    background-color: #f9f9f9;
-  }
-  .tab:hover {
-    background-color: #ddd;
-  }
-  .tab.active {
-    background-color: #fff;
-    border-bottom: none;
-    font-weight: bold;
-  }
-  .table-container {
-    display: none;
-    border: 1px solid #ccc;
-    padding: 10px;
-  }
-  .table-wrapper {
-    margin: 10px;
-  }
-</style>
 
 {% if actual%}
+<div class="trt-actions">
 <form method="post" action="{% url 'update_schedule_now' schedule_id=selected_schedule.id %}">
     {% csrf_token %}
     <button type="submit"><i class="fa fa-refresh" aria-hidden="true"></i> Actualiser les tâches automatiques</button>
 </form>
 <form method="post" action="{% url 'finalize_schedule' schedule_id=selected_schedule.id %}">
     {% csrf_token %}
-    <button type="submit" class="btn btn-primary">Finalize and Close Schedule</button>
+    <button type="submit" class="btn btn-primary">Clôturer le TRT</button>
 </form>
-    <h3>Details TRT DU {{ selected_schedule.date }} entre {{ selected_schedule.start_time }} et {{ selected_schedule.end_time }} status({{ selected_schedule.status_text }})</h3>
-<div class="tabs">
-  <div class="tab active" onclick="openTab(event, 'Details')">Details TRT</div>
-  <div class="tab" onclick="openTab(event, 'Employees')">Employees</div>
-  <div class="tab" onclick="openTab(event, 'Tasks')">Taches Actives</div>
-  <div class="tab" onclick="openTab(event, 'Reported')">Taches Reportees</div>
+</div>
+    <h3>Détails du TRT du {{ selected_schedule.date|date:'d/m/Y' }} · {{ selected_schedule.start_time|time:'H:i' }}–{{ selected_schedule.end_time|time:'H:i' }} · {{ selected_schedule.status_text }}</h3>
+<div class="tabs" role="tablist" aria-label="Détails du TRT">
+  <button type="button" id="tab-Details" class="tab active" role="tab" aria-controls="Details" aria-selected="true" tabindex="0" onclick="openTab(event, 'Details')">Détails TRT</button>
+  <button type="button" id="tab-Employees" class="tab" role="tab" aria-controls="Employees" aria-selected="false" tabindex="-1" onclick="openTab(event, 'Employees')">Employés</button>
+  <button type="button" id="tab-Tasks" class="tab" role="tab" aria-controls="Tasks" aria-selected="false" tabindex="-1" onclick="openTab(event, 'Tasks')">Tâches actives</button>
+  <button type="button" id="tab-Reported" class="tab" role="tab" aria-controls="Reported" aria-selected="false" tabindex="-1" onclick="openTab(event, 'Reported')">Tâches reportées</button>
 </div>
 
-<div id="Details" class="table-container" style="display: block;">
+<div id="Details" class="table-container" role="tabpanel" aria-labelledby="tab-Details" style="display: block;">
     <div>
         <h5>Ajouter une nouvelle assignation ou modifier une existante</h5>
-        <form method="post" action="{% url 'add_or_edit_schedule_item' %}">
+        <form method="post" action="{% url 'add_or_edit_schedule_item' %}" class="assignment-inline">
             {% csrf_token %}
-            <table class="table dataTable no-footer" style="width:100%;" role="grid">
-                <thead>
-                    <tr>
-                        <th>Employee</th>
-                        <th>Tache</th>
-                        <th>Temps Assigne</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>
-                            <select name="employee">
-                                {% for employee in employees %}
-                                    <option value="{{ employee.id }}">{{ employee.first_name }}</option>
-                                {% endfor %}
-                            </select>
-                        </td>
-                        <td>
-                            <select name="task">
-                                {% for task in tasks %}
-                                {% if task.task_type.name == 'AUTO' or task.task_type.name == 'GERANT'%}
-                                    <option value="{{ task.id }}">{{ task.task_name }}</option>
-                                {% endif %}
-                                {% endfor %}
-                            </select>
-                        </td>
-                        <td>
-                            <input type="time" name="assigned_time" placeholder="Assigned Time" step="1" value="00:00:00">
-                        </td>
-                        <td>
-                            <button type="submit">Ajout/Modification</button>
-                        </td>
-                        <td>
-                            <input type="hidden" name="schedule" value="{{ selected_schedule.id }}">
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="wizard-field">
+                <label for="assignment-employee">Employé</label>
+                <select name="employee" id="assignment-employee">
+                    {% for employee in employees %}<option value="{{ employee.id }}">{{ employee.first_name }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="wizard-field">
+                <label for="assignment-task">Tâche</label>
+                <select name="task" id="assignment-task">
+                    {% for task in tasks %}
+                    {% if task.task_type.name == 'AUTO' or task.task_type.name == 'GERANT' %}<option value="{{ task.id }}">{{ task.task_name }}</option>{% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="wizard-field">
+                <label for="assignment-time">Temps affecté</label>
+                <input type="time" id="assignment-time" name="assigned_time" step="1" value="00:00:00">
+            </div>
+            <input type="hidden" name="schedule" value="{{ selected_schedule.id }}">
+            <button type="submit">Ajouter ou modifier</button>
         </form>
     </div>
 <!--</div>-->
@@ -118,7 +75,7 @@
 </section>
 {% endif %}
 
-<h2>Taches Non Assignees</h2>
+<h2>Tâches non affectées</h2>
     <table class="filtertable">
         <thead>
             <tr>
@@ -154,7 +111,7 @@
         </tbody>
     </table>
     {% if not non_assigned_items %}<p>Aucune tâche de réception à affecter pour le moment.</p>{% endif %}
-<h1>Taches En Cours</h1>
+<h1>Tâches en cours</h1>
 <h2>Manuelles</h2>
 {% if can_manage_trt %}{% include 'schedule/bulk_manual_toolbar.html' with source='actual' %}{% endif %}
 <table class="filtertable" data-manual-table>
@@ -291,7 +248,7 @@
 </div>
 
 <!-- Tab content for Employees -->
-<div id="Employees" class="table-container">
+<div id="Employees" class="table-container" role="tabpanel" aria-labelledby="tab-Employees">
       <h3>Details des Employees</h3>
   <table class="filtertable" id="EmployeeTable">
     <thead>
@@ -316,7 +273,7 @@
     </tbody>
   </table>
 </div>
-<div id="Tasks" class="table-container">
+<div id="Tasks" class="table-container" role="tabpanel" aria-labelledby="tab-Tasks">
     <h2>Details des Taches</h2>
   <table class="filtertable stripped" id="TasksTable">
     <thead>
@@ -347,7 +304,7 @@
     </tbody>
   </table>
 </div>
-<div id="Reported" class="table-container">
+<div id="Reported" class="table-container" role="tabpanel" aria-labelledby="tab-Reported">
 
     <h5>Importer des taches</h5>
 
@@ -413,9 +370,6 @@
         <div id="formContainer" class="w3-container">
             {% include 'special_forms/special_form.html' %}
         </div>
-        <footer class="w3-container w3-teal">
-<br>
-        </footer>
     </div>
 </div>
 {% else %}
@@ -426,20 +380,15 @@
 <script>
 // Function to handle tab switching
 function openTab(evt, tabName) {
-  // Get all elements with class="table-container"
-  const tabcontent = document.getElementsByClassName("table-container");
-
-  // Loop through each tab content
-  for (let i = 0; i < tabcontent.length; i++) {
-    // Hide only elements that are not the clicked tab
-    if (tabcontent[i].id !== tabName) {
-      tabcontent[i].style.display = "none";
-    }
-  }
-
-  // Show the current tab, and add an "active" class to the button that opened the tab
-  document.getElementById(tabName).style.display = "block";
-  evt.currentTarget.className += " active";
+  document.querySelectorAll('.table-container[role="tabpanel"]').forEach(function (panel) {
+    panel.style.display = panel.id === tabName ? 'block' : 'none';
+  });
+  document.querySelectorAll('.tabs [role="tab"]').forEach(function (tab) {
+    const active = tab === evt.currentTarget;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+  });
 }
 
 </script>

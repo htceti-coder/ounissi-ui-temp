@@ -23,7 +23,7 @@
                 const expanded = toggle.getAttribute('aria-expanded') === 'true';
                 groupRows(group.dataset.group).forEach(row => { row.hidden = expanded; });
                 toggle.setAttribute('aria-expanded', String(!expanded));
-                toggle.textContent = expanded ? '▼' : '▲';
+                toggle.textContent = expanded ? 'Afficher' : 'Masquer';
             });
             group.addEventListener('change', event => {
                 if (!event.target.matches('select, input')) return;

@@ -2,7 +2,7 @@
 <html lang="fr" data-theme="light">
 <head>
     {% load static %}
-    {% load custom_filters %}
+    {% load custom_filters navigation_tags %}
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="color-scheme" content="light dark">
@@ -18,6 +18,7 @@
 
     <!-- New UI layer. It is namespaced and does not replace Bootstrap/W3 APIs. -->
     <link rel="stylesheet" href="{% static 'css/ounissi_v2.css' %}">
+    <link rel="stylesheet" href="{% static 'css/ounissi_refined.css' %}">
 
     <!-- jQuery stays in the head because a few existing feature templates execute inline AJAX scripts inside content. -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -25,7 +26,7 @@
     {% block style %}{% endblock %}
     {% block head %}{% endblock %}
 </head>
-<body class="ounissi-app" data-app-shell="ounissi-v2">
+<body class="ounissi-app{% if not user.is_authenticated %} is-guest{% endif %}" data-app-shell="ounissi-v2">
     <div id="app-progress" class="app-progress" aria-hidden="true"><span></span></div>
 
     <a class="skip-link" href="#main-content">Aller au contenu</a>
@@ -47,19 +48,7 @@
             </button>
         </div>
 
-        <div class="live-panel" aria-label="Espace de travail">
-            <div class="live-panel__head">
-                <span><i class="status-dot"></i> Espace de travail</span>
-                <strong id="sidebar-clock">--:--</strong>
-            </div>
-            <div class="live-panel__meta">
-                <span>TRT & tâches</span>
-                <span>Données de l’application</span>
-            </div>
-            <div class="live-panel__bar"><span></span></div>
-        </div>
-
-        {% include 'includes/ounissi_nav.html' %}
+        {% ounissi_navigation %}
 
         <div class="sidebar-account">
             {% if user.is_authenticated %}
@@ -76,9 +65,6 @@
                     <span class="online-dot" title="Connecté"></span>
                 </div>
                 <div class="account-actions">
-                    {% if logged_data.group.name == "Admin" %}
-                        <a href="/admin/" class="account-action" title="Administration"><i class="fa fa-cog"></i><span>Admin</span></a>
-                    {% endif %}
                     <form method="post" action="{% url 'logout' %}" class="account-logout">
                         {% csrf_token %}
                         <button type="submit" class="account-action" title="Déconnexion"><i class="fa fa-power-off"></i><span>Quitter</span></button>
@@ -122,19 +108,7 @@
                 </div>
             </div>
 
-            <div class="activity-rail" aria-label="Informations système">
-                <span class="activity-rail__label">MODULES</span>
-                <div class="activity-rail__viewport">
-                    <div class="activity-rail__track">
-                        <span><b>TRT</b> Planification, suivi et clôture</span>
-                        <span><b>Réception</b> Réception → Saisie → Produit → Vignette → Placement</span>
-                        <span><b>Pointage</b> Import ZKTeco et calcul des heures</span>
-                        <span><b>Paie</b> Gains, retenues et détails salaire</span>
-                        <span><b>Stocks</b> État et assignation des emplacements</span>
-                        <span><b>Xpertpharm</b> Requêtes paramétrées</span>
-                    </div>
-                </div>
-            </div>
+
         </header>
 
         <main id="main-content" class="app-main" tabindex="-1">
@@ -155,8 +129,7 @@
             </div>
 
             <footer class="app-footer">
-                <span>OUNISSI OS · Plateforme d'exploitation</span>
-                <span><i class="status-dot"></i> Django · HTML · CSS · JavaScript</span>
+                <span>OUNISSI · Gestion des opérations</span>
             </footer>
         </main>
     </div>

@@ -21,11 +21,11 @@ class TimesheetForm(forms.ModelForm):
 
 
 class TimesheetFilterForm(forms.Form):
-    start_date = forms.DateField(required=False, widget=forms.TextInput(attrs={'type': 'date'}))
-    end_date = forms.DateField(required=False, widget=forms.TextInput(attrs={'type': 'date'}))
+    start_date = forms.DateField(label='Date de début', required=False, widget=forms.TextInput(attrs={'type': 'date'}))
+    end_date = forms.DateField(label='Date de fin', required=False, widget=forms.TextInput(attrs={'type': 'date'}))
     employees = forms.ModelChoiceField(
         queryset=Employee.objects.all().order_by('last_name'),
-        empty_label="All",
+        label="Employé", empty_label="Tous",
         required=False,
     )
 

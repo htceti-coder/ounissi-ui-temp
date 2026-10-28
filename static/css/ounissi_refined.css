@@ -1,0 +1,229 @@
+/* Shared application presentation. Component behavior remains in the feature scripts. */
+:root {
+    --ui-sidebar: 260px;
+    --ui-topbar: 68px;
+    --ui-navy-900: #12263a;
+    --ui-emerald: #087e68;
+    --ui-emerald-strong: #076753;
+    --ui-bg: #f4f6f8;
+    --ui-surface: #fff;
+    --ui-surface-soft: #f7f9fa;
+    --ui-border: #dce3e8;
+    --ui-border-strong: #bdcbd4;
+    --ui-text: #172b3a;
+    --ui-muted: #546a79;
+    --ui-muted-soft: #6f808c;
+    --ui-radius: 8px;
+    --ui-radius-lg: 10px;
+}
+html[data-theme="dark"] {
+    --ui-bg: #0a1520;
+    --ui-surface: #142535;
+    --ui-surface-soft: #1a2d3e;
+    --ui-border: #334a5a;
+    --ui-border-strong: #536979;
+    --ui-text: #edf3f5;
+    --ui-muted: #b4c4cc;
+    --ui-muted-soft: #93a8b3;
+}
+
+body.ounissi-app {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif !important;
+    font-size: 15px;
+    line-height: 1.5;
+}
+.ounissi-app :is(h1, h2, h3, h4, h5, h6, button, input, select, textarea, label, th, td) { font-family: inherit; }
+.ounissi-app :is(h1, h2, h3, h4, h5, h6) { line-height: 1.25; letter-spacing: 0; font-weight: 650; }
+.ounissi-app .content-surface h1 { font-size: clamp(22px, 2vw, 26px); }
+.ounissi-app .content-surface h2 { font-size: 21px; }
+.ounissi-app .content-surface h3 { font-size: 18px; }
+.ounissi-app .content-surface h4 { font-size: 16px; }
+.ounissi-app .content-surface h5 { font-size: 15px; }
+.ounissi-app .content-surface > :is(h1, h2, h3):first-child { margin-top: 0; }
+.content-surface { min-width: 0; animation: none; }
+.app-main { min-width: 0; max-width: 1600px; }
+.app-footer { font-size: 12px; }
+
+/* Quiet, readable navigation and top bar. */
+.app-sidebar { background: var(--ui-navy-900); box-shadow: none; }
+.brand-lockup { padding: 20px 18px; }
+.brand-mark { width: 40px; height: 40px; flex-basis: 40px; border-radius: 9px; background: var(--ui-emerald); box-shadow: none; }
+.brand-letter { font-family: inherit; font-size: 20px; }
+.brand-pulse { display: none; }
+.brand-copy strong { font-family: inherit; font-size: 16px; font-weight: 700; line-height: 1.2; }
+.brand-copy small { color: #b3c1cc; font-size: 11px; letter-spacing: .02em; text-transform: none; }
+.sidebar-nav { padding: 0 10px 18px; }
+.nav-section { margin-bottom: 16px; }
+.nav-section__title { color: #a5b5c3; font-size: 11px; letter-spacing: .07em; }
+.nav-link { min-height: 40px; border-radius: 7px; color: #d0dbe3 !important; font-size: 14px; font-weight: 500; }
+.nav-link:hover { transform: none; background: rgba(255,255,255,.08); }
+.nav-link.is-active { background: rgba(58,180,151,.2); box-shadow: none; }
+.nav-icon { border-radius: 6px; }
+.account-copy strong { font-size: 13px; }
+.account-copy small, .account-action, .login-callout small { font-size: 12px; }
+.app-topbar { background: var(--ui-surface); backdrop-filter: none; }
+.topbar-primary { min-height: var(--ui-topbar); }
+.page-identity h1 { font-size: 19px; }
+.page-kicker { font-size: 11px; letter-spacing: .05em; }
+.command-trigger { border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 400; }
+.icon-button, .clock-card { border-radius: 8px; }
+.clock-card strong, .clock-card small { font-family: inherit; font-size: 11px; }
+
+/* Common controls, regardless of whether the template uses W3 or Bootstrap. */
+.ounissi-app label { color: var(--ui-text); font-size: 13px; font-weight: 600; letter-spacing: 0; }
+.ounissi-app :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]), select, textarea, .form-control) {
+    max-width: 100%; border-radius: 7px; font-family: inherit; font-size: 14px; font-weight: 400;
+}
+.ounissi-app :is(input, select, textarea, button):focus-visible,
+.ounissi-app a:focus-visible, .table-scroll-shell:focus-visible,
+.ounissi-app .dataTables_wrapper:focus-visible, .navigation-settings-table-wrap:focus-visible {
+    outline: 3px solid rgba(8,126,104,.4); outline-offset: 2px;
+}
+.ounissi-app :is(button:not(.icon-button):not(.account-action):not([class*="close"]), input[type="submit"], input[type="button"], .btn, .w3-button) {
+    min-height: 39px; border-radius: 7px; font-family: inherit; font-size: 14px; font-weight: 600;
+}
+.ounissi-app :is(button, .btn):hover { transform: none; }
+.ounissi-app button:not([class]):not([style]), .ounissi-app .btn-primary { background: var(--ui-emerald-strong); }
+.ounissi-app .btn-outline-secondary { border: 1px solid var(--ui-border-strong) !important; color: var(--ui-text); background: var(--ui-surface); }
+.ounissi-app .helptext, .ounissi-app .text-muted, .ounissi-app ul.errorlist { font-size: 13px; }
+.ounissi-app .chosen-container { font-family: inherit; font-size: 14px; }
+.ounissi-app .chosen-container-single .chosen-single,
+.ounissi-app .chosen-container-multi .chosen-choices { border-radius: 7px; }
+.ounissi-app :is(.w3-card, .w3-card-4, .card, .w3-panel, fieldset) { border-radius: 10px; box-shadow: var(--ui-shadow-sm); }
+.ounissi-app :is(.w3-card, .w3-card-4) > header { border-bottom: 1px solid var(--ui-border); background: var(--ui-surface-soft) !important; }
+.ounissi-app :is(.w3-card, .w3-card-4) > header :is(h1,h2,h3,h4,h5) { margin: 4px 0; }
+.ounissi-app .w3-card form :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea) { width: 100%; }
+.ounissi-app .w3-card form button { width: auto; }
+.ounissi-app .app-alert > span { font-size: 14px; font-weight: 500; }
+.ounissi-app .bulk-manual-panel__intro p, .ounissi-app .bulk-manual-count { font-size: 13px; }
+
+/* Scrolling is contained to each table, including plugin tables and dialogs. */
+.ounissi-app .table-scroll-shell, .ounissi-app .navigation-settings-table-wrap {
+    max-width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain;
+    border: 1px solid var(--ui-border); border-radius: 8px; background: var(--ui-surface); box-shadow: none;
+}
+.ounissi-app .table-scroll-shell > table { max-width: none; }
+.ounissi-app .dataTables_wrapper { width: 100%; max-width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; }
+.ounissi-app table:not(.ui-plain-table) { font-size: 14px; }
+.ounissi-app table:not(.ui-plain-table) :is(thead, tfoot) th {
+    color: var(--ui-muted); font-size: 12px; font-weight: 650; letter-spacing: .015em; text-transform: none;
+}
+.ounissi-app table:not(.ui-plain-table) tbody th { font-size: 14px; font-weight: 600; }
+.ounissi-app table:not(.ui-plain-table) :is(th, td) { padding: 10px 12px; }
+.ounissi-app .dataTables_wrapper :is(.dataTables_length, .dataTables_filter, .dataTables_info, .dataTables_paginate .paginate_button) { font-size: 13px; }
+.ounissi-app table.filtertable { table-layout: auto !important; }
+
+/* Consistent tabs, dialogs and reception assignment forms. */
+.ounissi-app .tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 8px; background: var(--ui-surface-soft); }
+.ounissi-app .tabs .tab { width: auto; min-width: 0; flex: 1 1 130px; margin: 0; border: 0; font-size: 14px; text-align: center; }
+.ounissi-app .table-container { display: none; min-width: 0; }
+.ounissi-app :is(.modal-content, .w3-modal-content) { border-radius: 10px; }
+.ounissi-app .modal-header, .ounissi-app .w3-modal-content > header {
+    border-bottom: 1px solid var(--ui-border); color: var(--ui-text) !important; background: var(--ui-surface-soft) !important;
+}
+.ounissi-app .w3-modal-content > header :is(h1,h2,h3,h4,h5) { color: var(--ui-text); font-size: 18px; }
+.ounissi-app .w3-modal-content > header :is(.w3-button, [data-popup-close]) { color: var(--ui-muted) !important; background: transparent !important; }
+.ounissi-app .modal-title { font-family: inherit; font-size: 18px; }
+.ounissi-app .w3-modal-content { max-height: calc(100vh - 32px); }
+.ounissi-app .w3-modal-content > .w3-container:not(header):not(footer) { max-height: min(72vh, 720px); }
+.ounissi-app .w3-modal-content :is(#popup_saisie_form, #popup_produit_form) { display: block; }
+.ounissi-app .w3-modal-content :is(#popup_saisie_form, #popup_produit_form) > div { margin: 0 0 14px; }
+.ounissi-app .w3-modal-content :is(#popup_saisie_form, #popup_produit_form) > div:has(> select) {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px;
+    padding: 14px; border: 1px solid var(--ui-border); border-radius: 8px; background: var(--ui-surface-soft);
+}
+.ounissi-app .w3-modal-content :is(#popup_saisie_form, #popup_produit_form) > div:has(> select) > :is(label, select) { grid-column: 1 / -1; }
+.ounissi-app .w3-modal-content :is(#popup_saisie_form, #popup_produit_form) > div:has(> select) > span { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.ounissi-app .w3-modal-content :is(#popup_saisie_form, #popup_produit_form) > div:has(> select) span input { width: 85px; min-width: 0; }
+
+/* Authentication and navigation settings. */
+.auth-page { display: flex; justify-content: center; padding: clamp(28px, 7vh, 72px) 0; }
+.auth-card { width: min(100%, 440px); padding: clamp(22px, 4vw, 34px); border: 1px solid var(--ui-border); border-radius: 10px; background: var(--ui-surface); box-shadow: var(--ui-shadow-sm); }
+.auth-card h1 { margin: 0 0 8px; }
+.auth-intro { margin: 0 0 24px; color: var(--ui-muted); }
+.auth-card .form-group { margin-bottom: 18px; }
+.auth-card .btn { width: 100%; }
+.settings-eyebrow { margin: 0 0 6px; color: var(--ui-emerald-strong); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.settings-page-header { margin: 0 0 20px; }
+.settings-page-header h1 { margin: 0 0 6px; }
+.settings-page-header p:last-child { max-width: 72ch; margin: 0; color: var(--ui-muted); }
+.navigation-settings-table-wrap { margin: 18px 0; }
+.ounissi-app table.navigation-settings-table { width: 100%; min-width: 620px; }
+.navigation-settings-table th:first-child { width: 52%; }
+.navigation-settings-table td { text-align: center; }
+.navigation-settings-table small { color: var(--ui-muted); font-size: 12px; font-weight: 400; }
+.ounissi-app .navigation-settings-table .navigation-settings-section th { color: var(--ui-text); background: var(--ui-surface-soft); font-size: 13px; font-weight: 700; }
+.navigation-settings-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+@media (max-width: 767px) {
+    .app-main { padding: 16px; }
+    /* Keep columns legible instead of compressing their contents into tall rows. */
+    .ounissi-app .table-scroll-shell > table, .ounissi-app .dataTables_wrapper > table {
+        min-width: max-content;
+    }
+    .ounissi-app .content-surface h1 { font-size: 22px; }
+    .ounissi-app .content-surface h2 { font-size: 19px; }
+    .ounissi-app :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea) { font-size: 16px; }
+    .ounissi-app .form-inline { align-items: stretch; gap: 8px; }
+    .ounissi-app .form-inline .form-group { width: 100%; margin: 0 0 8px !important; }
+    .ounissi-app .form-inline :is(input, select) { width: 100%; margin: 0 !important; }
+    .ounissi-app .w3-modal { padding: 12px !important; }
+    .ounissi-app .w3-modal-content { width: 100% !important; max-height: calc(100vh - 24px); }
+    .ounissi-app .w3-modal-content > .w3-container:not(header):not(footer) { max-height: calc(100vh - 160px); padding: 16px !important; }
+    .ounissi-app .w3-modal-content :is(#popup_saisie_form, #popup_produit_form) > div:has(> select) { grid-template-columns: 1fr 1fr; }
+    .ounissi-app .tabs .tab { flex-basis: 130px; }
+    .navigation-settings-actions button { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ounissi-app *, .ounissi-app *::before, .ounissi-app *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+.ounissi-app .tabs .tab { color: var(--ui-muted); background: transparent; box-shadow: none; }
+.ounissi-app .tabs .tab.active { color: var(--ui-text); background: var(--ui-surface); box-shadow: var(--ui-shadow-sm); }
+.trt-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.trt-actions form { margin: 0; }
+
+/* Structured planning forms rather than layout tables. */
+.wizard-header { margin-bottom: 20px; }
+.wizard-header h1 { margin: 0 0 6px; }
+.wizard-header p { margin: 0; color: var(--ui-muted); }
+.schedule-wizard { display: grid; gap: 16px; }
+.wizard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.wizard-card { min-width: 0; padding: 20px; border: 1px solid var(--ui-border); border-radius: 10px; background: var(--ui-surface); }
+.ounissi-app .wizard-card h2 { margin: 0 0 16px; font-size: 17px; }
+.wizard-fields { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; }
+.wizard-field { min-width: 0; }
+.wizard-field label, .wizard-card > label { display: block; margin-bottom: 6px; }
+.wizard-field :is(input, select) { width: 100%; }
+.wizard-secondary { margin-top: 12px; }
+.wizard-team { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.wizard-team .wizard-field { flex: 1 1 160px; }
+.wizard-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.assignment-inline { display: grid; grid-template-columns: 1fr 1.35fr 1fr auto; align-items: end; gap: 12px; margin-bottom: 24px; }
+.assignment-inline button { white-space: nowrap; }
+.filter-panel { padding: 18px; border: 1px solid var(--ui-border); border-radius: 10px; background: var(--ui-surface); }
+.filter-panel .form-group label { display: block; }
+.filter-panel .form-group :is(input, select) { width: 100%; }
+.filter-actions, .timesheet-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.timesheet-section { margin-top: 24px; }
+.timesheet-heading { justify-content: space-between; margin-bottom: 16px; }
+.timesheet-heading h2 { margin: 0; }
+@media (max-width: 767px) {
+    .wizard-grid, .wizard-fields, .assignment-inline { grid-template-columns: 1fr; }
+    .wizard-card { padding: 16px; }
+    .assignment-inline button { width: 100%; }
+}
+
+/* Guests don't need an empty navigation rail or an empty search. */
+body.is-guest .app-sidebar, body.is-guest .sidebar-overlay,
+body.is-guest [data-sidebar-open], body.is-guest [data-command-open] { display: none !important; }
+body.is-guest .app-stage { margin-left: 0; }
+
+/* Third-party table styles assume white rows; keep dark-mode text legible. */
+html[data-theme="dark"] .ounissi-app .dataTables_wrapper table.dataTable tbody tr { background-color: var(--ui-surface); }
+html[data-theme="dark"] .ounissi-app .dataTables_wrapper table.dataTable tbody tr:nth-child(even) { background-color: var(--ui-surface-soft); }
+html[data-theme="dark"] .ounissi-app .dataTables_wrapper table.dataTable tbody tr > :is(.sorting_1, .sorting_2, .sorting_3) { background-color: transparent; }
+html[data-theme="dark"] .ounissi-app table.w3-table-all tbody tr:nth-child(odd) { background-color: var(--ui-surface); }
+html[data-theme="dark"] .ounissi-app table.w3-table-all tbody tr:nth-child(even) { background-color: var(--ui-surface-soft); }
+html[data-theme="dark"] .ounissi-app .w3-pale-red { color: var(--ui-text) !important; background-color: #4a2630 !important; }
+html[data-theme="dark"] .ounissi-app .w3-pale-yellow { color: var(--ui-text) !important; background-color: #4a3b20 !important; }
+html[data-theme="dark"] .ounissi-app .w3-pale-green { color: var(--ui-text) !important; background-color: #183d35 !important; }

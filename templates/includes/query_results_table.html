@@ -5,15 +5,17 @@
     <span>Impossible de charger les données. Vérifiez la connexion et la configuration de la requête.</span>
   </div>
 {% elif results.columns %}
-  <table{% if table_id %} id="{{ table_id }}"{% endif %} class="table w3-table w3-striped w3-white w3-border{% if filterable %} filtertable{% endif %}{% if collapsible %} collapse{% endif %}" style="width:100%;" data-no-normalize>
-    <thead><tr>
-      {% for column in results.columns %}<th scope="col">{{ column }}</th>{% endfor %}
-    </tr></thead>
-    <tbody>
-      {% for row in results.data_rows %}
-        <tr>{% for value in row %}<td>{{ value|default_if_none:"—" }}</td>{% endfor %}</tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="table-scroll-shell{% if collapsible %} collapse{% endif %}"{% if collapsible and table_id %} id="{{ table_id }}"{% endif %} role="region" aria-label="Résultats de la requête" tabindex="0">
+    <table{% if table_id and not collapsible %} id="{{ table_id }}"{% endif %} class="table w3-table w3-striped w3-white w3-border{% if filterable %} filtertable{% endif %}" style="width:100%;" data-no-normalize>
+      <thead><tr>
+        {% for column in results.columns %}<th scope="col">{{ column }}</th>{% endfor %}
+      </tr></thead>
+      <tbody>
+        {% for row in results.data_rows %}
+          <tr>{% for value in row %}<td>{{ value|default_if_none:"—" }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% if not results.data_rows %}<p class="query-empty">Aucun résultat pour cette requête.</p>{% endif %}
 {% endif %}

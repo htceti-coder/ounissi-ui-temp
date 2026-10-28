@@ -1,17 +1,17 @@
 <!-- special_forms/SaisieForm.html -->
-<h2>Assignation des Saisie</h2>
+<h2>Affectation de la saisie</h2>
 <h3>{{ model_schedule_item.task }}</h3>
 {% include 'special_forms/assignment_context.html' %}
 <form id="popup_saisie_form" method="post" action="{% url 'form_saisie' %}">
     {% csrf_token %}
     <div>
-        <label for="number_of_lines">Nombre de Lignes dans la Facture/BL:</label>
+        <label for="number_of_lines">Nombre de lignes de la facture / BL :</label>
         <input id="number_of_lines" name="number_of_lines" type="number" min="1" oninput="distributeLines({{ items_list }})" required>
     </div>
     <div>
-        <label for="employee1">Employee 1:</label>
+        <label for="employee1">Employé 1 :</label>
         <select id="employee1" name="employee1" onchange="distributeLines({{ items_list }})" required>
-            <option value="">Selectioner un Employee</option>
+            <option value="">Sélectionner un employé</option>
             {% for employee in model_employees %}
             <option value="{{ employee.employee.id }}">{{ employee.employee }}</option>
             {% endfor %}
@@ -23,9 +23,9 @@
 <!--        <input type="hidden" id="item1_time" name="item1_time">-->
     </div>
     <div>
-        <label for="employee2">Employee 2:</label>
+        <label for="employee2">Employé 2 :</label>
         <select id="employee2" name="employee2" onchange="distributeLines({{ items_list }})">
-            <option value="">Selectioner un Employee</option>
+            <option value="">Sélectionner un employé</option>
             {% for employee in model_employees %}
             <option value="{{ employee.employee.id }}">{{ employee.employee }}</option>
             {% endfor %}
@@ -37,9 +37,9 @@
 
     </div>
         <div>
-        <label for="employee3">Employee 3:</label>
+        <label for="employee3">Employé 3 :</label>
         <select id="employee3" name="employee3" onchange="distributeLines({{ items_list }} )">
-            <option value="">Selectioner un Employee</option>
+            <option value="">Sélectionner un employé</option>
             {% for employee in model_employees %}
             <option value="{{ employee.employee.id }}">{{ employee.employee }}</option>
             {% endfor %}

@@ -268,10 +268,10 @@ class UIWorkflowTests(TestCase):
     def test_timesheet_sync_quota_reflects_database(self):
         UserSyncLog.objects.create(user=self.user, date=timezone.localdate(), count=2)
         response = self.client.get(reverse('my_timesheet'))
-        self.assertContains(response, 'Sync Terminal (1 restants)')
+        self.assertContains(response, 'Synchroniser le terminal (1 restant)')
         UserSyncLog.objects.filter(user=self.user).update(count=3)
         response = self.client.get(reverse('my_timesheet'))
-        self.assertContains(response, 'Sync Terminal (0 restants)')
+        self.assertContains(response, 'Synchroniser le terminal (0 restant)')
         self.assertContains(response, 'disabled')
 
     def test_query_ui_defaults_and_internal_query_test(self):

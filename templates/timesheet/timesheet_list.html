@@ -2,10 +2,10 @@
 {% extends "base2.html" %}
 {% load custom_filters %}
 {% load static %}
-{% block title %}Timesheet List{% endblock %}
+{% block title %}Liste des pointages{% endblock %}
 
 {% block content %}
-<h2>Liste Pointage</h2>
+<h1>Liste des pointages</h1>
 {% if xpert_audit_unavailable %}
 <div class="app-alert app-alert--warning" role="alert">
     <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
@@ -14,7 +14,7 @@
 {% endif %}
 
 
-<form method="get" action="">
+<form method="get" action="" class="filter-panel">
     <div class="form-row">
         <div class="form-group col-md-4">
             {{ filter_form.start_date.label_tag }}
@@ -25,28 +25,28 @@
             {{ filter_form.end_date }}
         </div>
         <div class="form-group col-md-4">
-            <label>Employees:</label>
+            {{ filter_form.employees.label_tag }}
             {{ filter_form.employees }}
         </div>
     </div>
-    <div class="w3-margin-top">
-        <button type="submit" class="w3-button w3-blue w3-round">
+    <div class="filter-actions">
+        <button type="submit" class="btn btn-primary">
             <i class="fa fa-filter"></i> Filtrer
         </button>
         <!-- The export button submitted as part of the GET request parameters -->
-        <button type="submit" name="export" value="excel" class="w3-button w3-green w3-round w3-margin-left">
+        <button type="submit" name="export" value="excel" class="btn btn-outline-secondary">
             <i class="fa fa-file-excel-o"></i> Exporter Excel
         </button>
     </div>
 </form>
-<div class="w3-container w3-margin-top">
-    <div class="w3-row w3-margin-bottom w3-padding-16">
-        <div class="w3-col l6">
-            <h3 class="w3-text-dark-grey"><b>Contrôle des Présences</b></h3>
+<div class="timesheet-section">
+    <div class="timesheet-heading">
+        <div>
+            <h2>Contrôle des présences</h2>
         </div>
-        <div class="w3-col l6 w3-right-align">
-            <button id="bulk-btn" onclick="executeBulkValidation()" class="w3-button w3-green w3-round-large w3-card-4">
-                ✅ Valider toute la liste
+        <div>
+            <button id="bulk-btn" onclick="executeBulkValidation()" class="btn btn-primary">
+                Valider toute la liste
             </button>
         </div>
     </div>
@@ -79,7 +79,7 @@
 
                 <td>
                     {% if not item.is_new_row and item.obj.is_confirmed %}
-                        <span class="w3-text-green" title="Validé">●</span>
+                        <span class="w3-text-green" title="Validé"><i class="fa fa-check-circle" aria-hidden="true"></i><span class="sr-only">Validé</span></span>
                     {% endif %}
                     {{ item.obj.employee }}
                 </td>
@@ -123,12 +123,12 @@
                 <td>
                     {% if item.is_new_row %}
                         <button onclick="saveNewSingleLine(this, {{ item.obj.employee.id }}, '{{ item.obj.date|date:'Y-m-d' }}')"
-                                class="w3-button w3-tiny w3-orange w3-round"
-                                id="btn-new-{{ item.obj.employee.id }}-{{ item.obj.date|date:'Y-m-d' }}">💾</button>
+                                class="btn btn-outline-secondary"
+                                id="btn-new-{{ item.obj.employee.id }}-{{ item.obj.date|date:'Y-m-d' }}">Enregistrer</button>
                     {% else %}
                         <button onclick="saveSingleLine({{ item.obj.id }})"
-                                class="w3-button w3-tiny w3-blue w3-round"
-                                id="btn-{{ item.obj.id }}">💾</button>
+                                class="btn btn-outline-secondary"
+                                id="btn-{{ item.obj.id }}">Enregistrer</button>
                     {% endif %}
                 </td>
             </tr>

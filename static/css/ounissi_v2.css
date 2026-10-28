@@ -6,7 +6,6 @@
  * valid. Every selector is scoped under .ounissi-app where practical.
  */
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Space+Grotesk:wght@500;600;700&display=swap");
 
 :root {
     --ui-sidebar: 274px;
@@ -195,28 +194,6 @@ body.ounissi-app {
 .brand-copy strong span { color: #34d399; }
 .brand-copy small { display: block; margin-top: 5px; overflow: hidden; color: #8192a9; font-size: 9.5px; font-weight: 700; letter-spacing: .13em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 
-.live-panel {
-    margin: 0 14px 12px;
-    padding: 12px;
-    border: 1px solid rgba(52, 211, 153, .16);
-    border-radius: 14px;
-    background: rgba(16, 185, 129, .07);
-    box-shadow: inset 0 1px rgba(255, 255, 255, .04);
-}
-
-.live-panel__head,
-.live-panel__meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.live-panel__head { color: #a7f3d0; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.live-panel__head strong { color: white; font: 600 10.5px "JetBrains Mono", monospace; letter-spacing: 0; }
-.live-panel__meta { margin-top: 8px; color: #8091a8; font-size: 10.5px; }
-.live-panel__bar { height: 4px; margin-top: 7px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .09); }
-.live-panel__bar span { display: block; width: 74%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #10b981, #5eead4); animation: live-breathe 2.4s ease-in-out infinite; }
-
 .status-dot,
 .online-dot {
     display: inline-block;
@@ -227,7 +204,6 @@ body.ounissi-app {
     box-shadow: 0 0 0 4px rgba(52, 211, 153, .1);
 }
 
-@keyframes live-breathe { 50% { opacity: .5; } }
 
 .sidebar-nav {
     flex: 1;
@@ -397,17 +373,6 @@ body.ounissi-app {
 .clock-card small { margin-top: 1px; color: #8292a8; font-size: 8.5px; text-transform: capitalize; }
 .legacy-navbar-slot:empty { display: none; }
 .legacy-navbar-slot { color: var(--ui-muted); font-size: 11px; }
-
-.activity-rail { display: flex; min-height: 30px; align-items: center; gap: 10px; overflow: hidden; border-top: 1px solid var(--ui-border); background: var(--ui-surface-soft); padding: 0 clamp(16px, 2.2vw, 28px); }
-.activity-rail__label { display: flex; align-items: center; gap: 7px; color: var(--ui-emerald-strong); font: 800 9px "Inter", sans-serif; letter-spacing: .12em; }
-.activity-rail__viewport { position: relative; overflow: hidden; flex: 1; }
-.activity-rail__track { display: flex; width: max-content; gap: 32px; animation: rail-scroll 42s linear infinite; color: var(--ui-muted); font-size: 10.5px; white-space: nowrap; }
-.activity-rail__track span { position: relative; }
-.activity-rail__track span:not(:last-child)::after { position: absolute; right: -18px; color: var(--ui-border-strong); content: "•"; }
-.activity-rail__track b { color: var(--ui-text); }
-.activity-rail:hover .activity-rail__track { animation-play-state: paused; }
-
-@keyframes rail-scroll { to { transform: translateX(-42%); } }
 
 /* ---------- Main content ---------- */
 
@@ -838,7 +803,6 @@ body.ounissi-app {
     .page-identity h1 { font-size: 16px; }
     .topbar-tools { gap: 5px; }
     .topbar-tools .notification-button { display: none; }
-    .activity-rail { padding: 0 13px; }
     .app-main { padding: 13px; }
     .page-intro { flex-direction: column; }
     .app-footer { align-items: flex-start; flex-direction: column; }
@@ -849,7 +813,6 @@ body.ounissi-app {
 @media (max-width: 480px) {
     .app-sidebar { width: min(86vw, 300px); }
     .topbar-tools [data-theme-toggle] { display: none; }
-    .activity-rail__label { display: none; }
     .app-main { padding: 10px; }
     .command-palette { padding: 5vh 10px; }
 }

@@ -1,138 +1,100 @@
-<!-- create_schedule.html -->
 {% extends 'base2.html' %}
-{% load custom_filters %}
 {% load static %}
-
+{% block title %}Créer un TRT type{% endblock %}
 {% block content %}
-
-    <h1>Creation TRT Type</h1>
-    <form method="post" id="main-form">
-        {% csrf_token %}
-        <label for="schedule_name">Nom Model TRT :</label>
+<header class="wizard-header">
+  <h1>Créer un TRT type</h1>
+  <p>Définissez les horaires, sélectionnez les tâches et les employés, puis répartissez les affectations.</p>
+</header>
+<form method="post" id="main-form" class="schedule-wizard">
+  {% csrf_token %}
+  <section class="wizard-card">
+    <h2>Informations générales</h2>
+    <div class="wizard-fields">
+      <div class="wizard-field">
+        <label for="schedule_name">Nom du TRT type</label>
         <input id="schedule_name" name="schedule_name" required>
-		<label for="start_time">Heure Debut:</label>
-		<input type="time" name="start_time" required id="start_time" value="08:00">
-		<label for="end_time">Heure Fin:</label>
-		<input type="time" name="end_time" required id="end_time" value="14:00">
+      </div>
+      <div class="wizard-field">
+        <label for="start_time">Heure de début</label>
+        <input type="time" name="start_time" required id="start_time" value="08:00">
+      </div>
+      <div class="wizard-field">
+        <label for="end_time">Heure de fin</label>
+        <input type="time" name="end_time" required id="end_time" value="14:00">
+      </div>
+    </div>
+  </section>
 
-        <div>
-            <table class="table">
-                <thead>
-                <tr>
-                    <th>Taches</th>
-                    <th>Employee</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr>
-                    <td>
-                        <select multiple class="chosen_multi_select" name="tasks_select" id="tasks-select">
-                            {% for task_type, tasks_details in tasks.items %}
-                                <optgroup label="{{ task_type }}" class="task-type-group">
-                                    {% for task in tasks_details %}
-                                        <option value="{{ task.pk }}" data-responsibility_level="{{ task.responsibility_level.value }}">{{ task }} ( Niv {{task.responsibility_level.value}})</option>
-                                    {% endfor %}
-                                </optgroup>
-                            {% endfor %}
-                        </select>
-                            <button type="button" onclick="selectTasksByType('Type 1')">Select All AUTO Tasks</button>
-
-                    </td>
-                    <td>
-                        <select multiple class="chosen_multi_select" name="employees_select" id="employees-select">
-                            {% for employee_rank, employees_details in employees.items %}
-                            <optgroup label={{employee_rank}} class="employee-rank-group">
-                                {%for employee in employees_details%}
-                                <option value="{{ employee.pk }}" data-rank="{{ employee.rank.value }}">{{ employee }} (Niv{{employee.rank.value}})</option>
-                            {% endfor %}
-                            </optgroup>
-                            {% endfor %}
-                        </select>
-                        <select id="team-select">
-                            <option value="">Select Group</option>
-                            {% for team in teams %}
-                                <option value="{{ team.pk }}" data-members="{% for member in team.employees.all %}{{ member.pk }},{% endfor %}">{{ team }}</option>
-                            {% endfor %}
-                        </select>
-                        <button type="button" onclick="addEmployeesFromGroup()">Add Employees from Group</button>
-
-                    </td>
-                    <td>
-                        <button type="button" onclick="fillScheduleIntermediateTables()">Distribution</button>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <table id="task-table">
-
-                        <thead>
-
-                            <tr>
-                                <th hidden>Task ID</th>
-                                <th>Tache</th>
-                                <th>Resp Min</th>
-                                <th>Temps Assignee</th>
-                                <th>Duree Totale</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        </tbody>
-                    </table>
-
-                    </td>
-                    <td>
-                        <table id="employee-table">
-                            <thead>
-                                <tr>
-                                    <th hidden>Employee ID</th>
-                                    <th>Employee</th>
-                                    <th>Rang</th>
-                                    <th>Temp Assigne</th>
-                                    <th>Tota Temp Trav</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                </tbody>
-                        </table>
-
-                    </td>
-                    <td>
-                        <button type="button" onclick="distributeTasks()">Assignation</button>
-                    </td>
-                </tr>
-
-                </tbody>
-
-            </table>
-
-
-            <h2>Details TRT</h2>
-            <table class="table" id="scheduleItems-table">
-              <thead>
-                <tr>
-                  <th hidden>Task ID</th>
-                  <th>Tache</th>
-                  <th hidden>Employee ID</th>
-                  <th>Employee</th>
-                  <th>Temps Assigne</th>
-				  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-              </tbody>
-              <tfoot></tfoot>
-            </table>
+  <div class="wizard-grid">
+    <section class="wizard-card">
+      <h2>Tâches</h2>
+      <label for="tasks-select">Tâches à planifier</label>
+      <select multiple class="chosen_multi_select" name="tasks_select" id="tasks-select">
+        {% for task_type, tasks_details in tasks.items %}
+          <optgroup label="{{ task_type }}" class="task-type-group">
+            {% for task in tasks_details %}
+              <option value="{{ task.pk }}" data-responsibility_level="{{ task.responsibility_level.value }}">{{ task }} (niv. {{ task.responsibility_level.value }})</option>
+            {% endfor %}
+          </optgroup>
+        {% endfor %}
+      </select>
+      <button type="button" class="btn btn-outline-secondary wizard-secondary" onclick="selectTasksByType('AUTO')">Sélectionner les tâches automatiques</button>
+    </section>
+    <section class="wizard-card">
+      <h2>Employés</h2>
+      <label for="employees-select">Employés à affecter</label>
+      <select multiple class="chosen_multi_select" name="employees_select" id="employees-select">
+        {% for employee_rank, employees_details in employees.items %}
+          <optgroup label="{{ employee_rank }}" class="employee-rank-group">
+            {% for employee in employees_details %}
+              <option value="{{ employee.pk }}" data-rank="{{ employee.rank.value }}">{{ employee }} (niv. {{ employee.rank.value }})</option>
+            {% endfor %}
+          </optgroup>
+        {% endfor %}
+      </select>
+      <div class="wizard-team">
+        <div class="wizard-field">
+          <label for="team-select">Équipe</label>
+          <select id="team-select">
+            <option value="">Sélectionner une équipe</option>
+            {% for team in teams %}
+              <option value="{{ team.pk }}" data-members="{% for member in team.employees.all %}{{ member.pk }},{% endfor %}">{{ team }}</option>
+            {% endfor %}
+          </select>
         </div>
+        <button type="button" class="btn btn-outline-secondary" onclick="addEmployeesFromGroup()">Ajouter l’équipe</button>
+      </div>
+    </section>
+  </div>
+  <div class="wizard-actions"><button type="button" onclick="fillScheduleIntermediateTables()">Préparer la répartition</button></div>
 
+  <div class="wizard-grid">
+    <section class="wizard-card">
+      <h2>Durée des tâches</h2>
+      <table id="task-table" aria-label="Durée des tâches">
+        <thead><tr><th hidden>ID</th><th>Tâche</th><th>Niveau minimum</th><th>Temps affecté</th><th>Durée totale</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+    <section class="wizard-card">
+      <h2>Temps des employés</h2>
+      <table id="employee-table" aria-label="Temps des employés">
+        <thead><tr><th hidden>ID</th><th>Employé</th><th>Rang</th><th>Temps affecté</th><th>Temps de travail</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </div>
+  <div class="wizard-actions"><button type="button" onclick="distributeTasks()">Répartir les tâches</button></div>
 
-
-
-        <button type="button" onclick="submitData()">Enregistrer</button>
-    </form>
+  <section class="wizard-card">
+    <h2>Détail des affectations</h2>
+    <table class="table" id="scheduleItems-table" aria-label="Détail des affectations">
+      <thead><tr><th hidden>ID tâche</th><th>Tâche</th><th hidden>ID employé</th><th>Employé</th><th>Temps affecté</th><th>Action</th></tr></thead>
+      <tbody></tbody><tfoot></tfoot>
+    </table>
+  </section>
+  <div class="wizard-actions"><button type="button" class="btn btn-primary" onclick="submitData()">Enregistrer le TRT type</button></div>
+</form>
 {% endblock %}
-
-{% block scripts %}
-
-<script src="{% static 'js/create_schedule.js' %}"></script>
-
-{% endblock %}
+{% block scripts %}<script src="{% static 'js/create_schedule.js' %}"></script>{% endblock %}

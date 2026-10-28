@@ -61,7 +61,7 @@ async function postToNinja(payload, rowElements) {
 
                 // Check for standard or new save buttons inside the row
                 const btn = row.querySelector('button[id^="btn-"]');
-                if (btn) btn.innerHTML = "✅";
+                if (btn) btn.innerHTML = "Enregistré";
             });
             return true;
         } else {
@@ -85,7 +85,7 @@ async function saveSingleLine(id) {
     if (!row || !btn) return;
 
     const originalBtnIcon = btn.innerHTML;
-    btn.innerHTML = "⏳";
+    btn.innerHTML = "En cours...";
 
     const data = extractRowData(row);
     if (!data) return;
@@ -100,7 +100,7 @@ async function saveNewSingleLine(btnElement, employeeId, dateStr) {
     if (!row) return;
 
     const originalBtnIcon = btnElement.innerHTML;
-    btnElement.innerHTML = "⏳";
+    btnElement.innerHTML = "En cours...";
 
     const data = extractRowData(row);
     if (!data) return;
@@ -120,7 +120,7 @@ async function executeBulkValidation() {
     let confirmMessage = `Confirmer la validation de ${tableRows.length} lignes ?`;
 
     if (warningRows.length > 0) {
-        confirmMessage = `⚠️ ATTENTION: Il y a ${warningRows.length} lignes avec des anomalies (en rouge). \n\nEtes-vous sûr de vouloir tout valider sans corriger ?`;
+        confirmMessage = `Attention : Il y a ${warningRows.length} lignes avec des anomalies (en rouge). \n\nEtes-vous sûr de vouloir tout valider sans corriger ?`;
     }
 
     if (!confirm(confirmMessage)) return;
@@ -129,7 +129,7 @@ async function executeBulkValidation() {
     const rowsArray = [];
 
     const originalBtnText = bulkBtn.innerHTML;
-    bulkBtn.innerHTML = "⏳ En cours...";
+    bulkBtn.innerHTML = "En cours...";
     bulkBtn.disabled = true;
 
     tableRows.forEach(row => {
@@ -143,7 +143,7 @@ async function executeBulkValidation() {
     const success = await postToNinja(payload, rowsArray);
 
     if (success) {
-        bulkBtn.innerHTML = "✅ Liste Validée";
+        bulkBtn.innerHTML = "Liste validée";
         bulkBtn.className = "w3-button w3-light-grey w3-round-large";
     } else {
         bulkBtn.innerHTML = originalBtnText;
