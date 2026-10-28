@@ -972,7 +972,10 @@ def get_model_form(request):
     schedule_id = request.POST.get('selected_schedule')
     try:
         task = Task.objects.get(pk=task_id)
-        model_name = task.progress_query.parameters['model_name']
+        progress_query = task.progress_query
+        model_name = (progress_query.parameters or {}).get('model_name') if progress_query else None
+        if not model_name:
+            raise ValueError('Le formulaire de cette tâche n’est pas configuré : renseignez model_name dans la requête de progression.')
         model = apps.get_model('ounissi_app', model_name)
         form_class_name = model.get_form()
         form_class = import_string(f'ounissi_app.forms.{form_class_name}')
@@ -984,12 +987,15 @@ def get_model_form(request):
             'form': form, 'form_title': task.task_name, 'form_class_name': form_class_name,
             'transfer_data': transfer_data, 'logged_data': getLoggedData(request),
         })
+    except ValueError as exc:
+        return JsonResponse({'success': False, 'message': str(exc)}, status=422)
     except Exception:
         logger.exception('Unable to load task form')
         return JsonResponse({'success': False, 'message': 'Impossible de charger ce formulaire. Vérifiez la configuration de la tâche.'}, status=422)
 
 
 @login_required
+@transaction.atomic
 def generic_form_submission_view(request, form_class_name):
     if request.method == 'POST':
         referer = request.META.get('HTTP_REFERER')
@@ -1001,6 +1007,13 @@ def generic_form_submission_view(request, form_class_name):
             model_form.created_by = request.user
             transfer_data = json.loads(request.POST.get('transfer_data'))
             task = Task.objects.get(pk=transfer_data['task_id'])
+            if isinstance(model_form, Reception):
+                employee = Employee.objects.filter(user=request.user).first()
+                model_name = (task.progress_query.parameters or {}).get('model_name') if task.progress_query else None
+                if not employee or str(employee.pk) != str(transfer_data.get('employee_id')):
+                    raise PermissionDenied
+                if model_name != 'Reception' or not task.menu or not employee.rank or employee.rank.value > task.responsibility_level.value:
+                    raise PermissionDenied
 
             schedule_item, assigned_delta = schedule_service.update_schedule_from_item(
                 task_id=task.id,
@@ -1011,11 +1024,12 @@ def generic_form_submission_view(request, form_class_name):
                 progression_rate=100
             )
 
-            schedule_service.generate_group_task(schedule_item, schedule_item.schedule)
-            schedule_service.update_employee_task_from_item(schedule_item, assigned_delta)
-
             model_form.related_item = schedule_item
             model_form.save()
+            schedule_service.update_employee_task_from_item(schedule_item, assigned_delta)
+            generated = schedule_service.generate_group_task(schedule_item, schedule_item.schedule)
+            if isinstance(model_form, Reception) and not generated:
+                messages.warning(request, 'Réception enregistrée, mais aucune tâche suivante n’est configurée. Vérifiez les règles de génération des tâches.')
             return redirect(referer or 'home')
         else:
             return render(request, 'tasks/model_form_page.html', {
@@ -1028,18 +1042,72 @@ def generic_form_submission_view(request, form_class_name):
     return HttpResponseNotAllowed(['POST'])
 
 
+def can_manage_reception(request):
+    """Use the same manager roles as the TRT management navigation."""
+    return request.user.groups.filter(name='Admin').exists() or bool(getLoggedData(request)['leader'])
+
+
+def reception_assignment_error(form):
+    """Check the locked pending item against the displayed parent and employees."""
+    if not form.is_valid():
+        return 'Affectation non enregistrée. Vérifiez les champs du formulaire.'
+    item = ScheduleItem.objects.select_for_update().select_related(
+        'schedule', 'task__progress_query', 'task__responsibility_level',
+    ).get(pk=form.cleaned_data['employee1_schedule_item'].pk)
+    if item.employee_id:
+        return 'Cette tâche a déjà été affectée. Actualisez le TRT avant de continuer.'
+    configured_model = (item.task.progress_query.parameters or {}).get('model_name') if item.task.progress_query else None
+    if configured_model != form._meta.model.__name__:
+        return 'La tâche sélectionnée ne correspond pas à ce formulaire.'
+    if item.task.average_duration is None or item.task.average_duration.total_seconds() <= 0:
+        return 'Configurez une durée par ligne positive pour cette tâche.'
+
+    original_item = schedule_service.get_original_item(item)
+    original = form.cleaned_data.get('origine')
+    if not original_item or not original or original not in schedule_service.get_related_item_details(original_item, type(original)):
+        return 'La tâche précédente de cette réception est introuvable ou ne correspond plus à cette affectation.'
+    supplier, reference = form.cleaned_data.get('supplier'), form.cleaned_data.get('ref_tiers')
+    if not supplier or not reference or supplier != original.supplier or reference != original.ref_tiers:
+        return 'Le fournisseur ou la référence ne correspond pas à la réception d’origine.'
+    if schedule_service.reception_identifier(item.task_identifier) != f'{supplier}#{reference}':
+        return 'La référence de cette tâche ne correspond pas à la réception d’origine.'
+    if hasattr(original, 'number_of_lines') and form.cleaned_data.get('number_of_lines') != original.number_of_lines:
+        return 'Le nombre de lignes ne correspond plus à l’étape précédente.'
+
+    employee_ids = {form.cleaned_data[f'employee{i}'].pk for i in (1, 2, 3) if form.cleaned_data.get(f'employee{i}')}
+    eligible_ids = set(ScheduleEmployee.objects.filter(
+        schedule=item.schedule, employee_id__in=employee_ids,
+        employee__rank__value__lte=item.task.responsibility_level.value,
+    ).values_list('employee_id', flat=True))
+    if employee_ids != eligible_ids:
+        return 'Un employé sélectionné n’est pas éligible dans ce TRT.'
+    form.instance.employee1_schedule_item = item
+    # Additional schedule items are created from the validated employees and
+    # ranges, never accepted as arbitrary IDs from a submitted form.
+    form.instance.employee2_schedule_item = None
+    form.instance.employee3_schedule_item = None
+    return None
+
+
 @login_required
 def get_special_form(request):
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])
+    if not can_manage_reception(request):
+        raise PermissionDenied
 
     try:
         task = Task.objects.get(pk=request.POST.get('task_id'))
         schedule_item = ScheduleItem.objects.get(pk=request.POST.get('schedule_item'))
         if schedule_item.task_id != task.id:
             raise ValueError('La tâche sélectionnée ne correspond pas à cette affectation.')
+        if schedule_item.employee_id:
+            raise ValueError('Cette tâche a déjà été affectée. Actualisez le TRT avant de continuer.')
 
-        model_name = task.progress_query.parameters['model_name']
+        progress_query = task.progress_query
+        model_name = (progress_query.parameters or {}).get('model_name') if progress_query else None
+        if not model_name:
+            raise ValueError('Le formulaire de cette tâche n’est pas configuré : renseignez model_name dans la requête de progression.')
         model = apps.get_model('ounissi_app', model_name)
         form_class_name = model.get_form()
         employees = ScheduleEmployee.objects.filter(
@@ -1048,24 +1116,39 @@ def get_special_form(request):
         )
 
         original_item = schedule_service.get_original_item(schedule_item)
-        original_model = apps.get_model(
-            'ounissi_app', original_item.task.progress_query.parameters['model_name']
-        )
-        original_task = schedule_service.get_related_item_details(original_item, original_model)[0]
-        # Assignment views persist the current task's average duration per line.
-        # Show that same duration in the form instead of a different estimate.
+        if not original_item:
+            raise ValueError('La tâche précédente de cette réception est introuvable. Vérifiez la règle de génération et la référence.')
+        original_query = original_item.task.progress_query
+        original_model_name = (original_query.parameters or {}).get('model_name') if original_query else None
+        if not original_model_name:
+            raise ValueError('Le modèle de la tâche précédente n’est pas configuré.')
+        original_model = apps.get_model('ounissi_app', original_model_name)
+        original_details = schedule_service.get_related_item_details(original_item, original_model)
+        if not original_details:
+            raise ValueError('Les données de la tâche précédente sont introuvables pour cette réception.')
+        original_task = original_details[0]
+        if schedule_item.task.average_duration is None:
+            raise ValueError('La durée par ligne de cette tâche n’est pas configurée.')
         seconds_per_line = schedule_item.task.average_duration.total_seconds()
         items_list = [int(seconds_per_line) if seconds_per_line.is_integer() else seconds_per_line]
         invoice = None
+        invoice_warning = None
 
         if form_class_name in ('ReceptionVignetteForm', 'ReceptionProduitForm', 'ReceptionPlacementForm'):
-            query = Query.objects.get(name='InvoiceHelper')
-            parameters = query.parameters.copy()
-            parameters.update(ref_tiers=original_task.ref_tiers, supplier=original_task.supplier)
-            invoice = get_query_results(query, parameters)
-            quantities = column_values(invoice, 'QUANTITE')
-            if not quantities:
-                raise ValueError('Aucune ligne trouvée pour cette facture dans Xpert.')
+            # Invoice details are a preview, not a prerequisite for planning.
+            # The previous step records the number of lines used for assignment,
+            # even while Xpert's invoice rows are still being entered.
+            try:
+                query = Query.objects.get(name='InvoiceHelper')
+                parameters = (query.parameters or {}).copy()
+                parameters.update(ref_tiers=original_task.ref_tiers, supplier=original_task.supplier)
+                invoice = get_query_results(query, parameters)
+                quantities = column_values(invoice, 'QUANTITE')
+                if not quantities:
+                    invoice_warning = 'Le détail de la facture n’est pas encore disponible dans Xpert. Vous pouvez affecter la tâche avec le nombre de lignes déjà saisi.'
+            except (Query.DoesNotExist, ValueError):
+                invoice = None
+                invoice_warning = 'Le détail de la facture n’a pas pu être chargé depuis Xpert. Vous pouvez affecter la tâche avec le nombre de lignes déjà saisi.'
 
         return render(request, f'special_forms/{form_class_name}.html', {
             'model_schedule_item': schedule_item,
@@ -1073,6 +1156,7 @@ def get_special_form(request):
             'original_task': original_task,
             'items_list': items_list,
             'invoice': invoice,
+            'invoice_warning': invoice_warning,
         })
     except ValueError as exc:
         return render(request, 'special_forms/form_error.html', {'form_error': str(exc)}, status=422)
@@ -1086,13 +1170,16 @@ def get_special_form(request):
 @login_required
 @transaction.atomic
 def special_form_saisie(request):
+    if not can_manage_reception(request):
+        raise PermissionDenied
     referer = request.META.get('HTTP_REFERER')
     if request.method == 'POST':
         form = SaisieForm(request.POST)
-        if form.is_valid():
+        validation_error = reception_assignment_error(form)
+        if not validation_error:
             model_form = form.save(commit=False)
             task_id = model_form.employee1_schedule_item.task.id
-            task_identifier = model_form.employee1_schedule_item.task_identifier
+            task_identifier = schedule_service.reception_identifier(model_form.employee1_schedule_item.task_identifier)
             schedule_id = model_form.employee1_schedule_item.schedule.id
             average_duration = model_form.employee1_schedule_item.task.average_duration
 
@@ -1109,7 +1196,8 @@ def special_form_saisie(request):
                 item_id=model_form.employee1_schedule_item.id
             )
 
-            schedule_service.generate_group_task(schedule_item, schedule_item.schedule)
+            if not schedule_service.generate_group_task(schedule_item, schedule_item.schedule):
+                messages.warning(request, 'Affectation enregistrée, mais aucune tâche suivante n’est configurée. Vérifiez les règles de génération.')
             schedule_service.update_employee_task_from_item(schedule_item, assigned_delta)
 
             if model_form.employee2 and model_form.employee2_range_start and model_form.employee2_range_end:
@@ -1141,7 +1229,7 @@ def special_form_saisie(request):
                     schedule_service.update_employee_task_from_item(model_form.employee3_schedule_item, assigned_delta)
             form.save()
         else:
-            messages.error(request, 'Affectation non enregistrée. Vérifiez les champs du formulaire.')
+            messages.error(request, validation_error)
         return redirect(referer or 'actual_schedule_details')
     return HttpResponseNotAllowed(['POST'])
 
@@ -1149,13 +1237,16 @@ def special_form_saisie(request):
 @login_required
 @transaction.atomic
 def special_form_produit(request):
+    if not can_manage_reception(request):
+        raise PermissionDenied
     referer = request.META.get('HTTP_REFERER')
     if request.method == 'POST':
         form = ReceptionProduitForm(request.POST)
-        if form.is_valid():
+        validation_error = reception_assignment_error(form)
+        if not validation_error:
             model_form = form.save(commit=False)
             task_id = model_form.employee1_schedule_item.task.id
-            task_identifier = model_form.employee1_schedule_item.task_identifier
+            task_identifier = schedule_service.reception_identifier(model_form.employee1_schedule_item.task_identifier)
             schedule_id = model_form.employee1_schedule_item.schedule.id
             average_duration = model_form.employee1_schedule_item.task.average_duration
 
@@ -1171,7 +1262,8 @@ def special_form_produit(request):
                 item_id=model_form.employee1_schedule_item.id
             )
 
-            schedule_service.generate_group_task(schedule_item, schedule_item.schedule)
+            if not schedule_service.generate_group_task(schedule_item, schedule_item.schedule):
+                messages.warning(request, 'Affectation enregistrée, mais aucune tâche suivante n’est configurée. Vérifiez les règles de génération.')
             schedule_service.update_employee_task_from_item(schedule_item, assigned_delta)
 
             if model_form.employee2 and model_form.employee2_range_start and model_form.employee2_range_end:
@@ -1203,7 +1295,7 @@ def special_form_produit(request):
                     schedule_service.update_employee_task_from_item(model_form.employee3_schedule_item, assigned_delta)
             form.save()
         else:
-            messages.error(request, 'Affectation non enregistrée. Vérifiez les champs du formulaire.')
+            messages.error(request, validation_error)
         return redirect(referer or 'actual_schedule_details')
     return HttpResponseNotAllowed(['POST'])
 
@@ -1211,13 +1303,16 @@ def special_form_produit(request):
 @login_required
 @transaction.atomic
 def special_form_vignette(request):
+    if not can_manage_reception(request):
+        raise PermissionDenied
     referer = request.META.get('HTTP_REFERER')
     if request.method == 'POST':
         form = ReceptionVignetteForm(request.POST)
-        if form.is_valid():
+        validation_error = reception_assignment_error(form)
+        if not validation_error:
             model_form = form.save(commit=False)
             task_id = model_form.employee1_schedule_item.task.id
-            task_identifier = model_form.employee1_schedule_item.task_identifier
+            task_identifier = schedule_service.reception_identifier(model_form.employee1_schedule_item.task_identifier)
             schedule_id = model_form.employee1_schedule_item.schedule.id
             average_duration = model_form.employee1_schedule_item.task.average_duration
 
@@ -1233,7 +1328,8 @@ def special_form_vignette(request):
                 item_id=model_form.employee1_schedule_item.id
             )
 
-            schedule_service.generate_group_task(schedule_item, schedule_item.schedule)
+            if not schedule_service.generate_group_task(schedule_item, schedule_item.schedule):
+                messages.warning(request, 'Affectation enregistrée, mais aucune tâche suivante n’est configurée. Vérifiez les règles de génération.')
             schedule_service.update_employee_task_from_item(schedule_item, assigned_delta)
 
             if model_form.employee2 and model_form.employee2_range_start and model_form.employee2_range_end:
@@ -1265,7 +1361,7 @@ def special_form_vignette(request):
                     schedule_service.update_employee_task_from_item(model_form.employee3_schedule_item, assigned_delta)
             form.save()
         else:
-            messages.error(request, 'Affectation non enregistrée. Vérifiez les champs du formulaire.')
+            messages.error(request, validation_error)
         return redirect(referer or 'actual_schedule_details')
     return HttpResponseNotAllowed(['POST'])
 
@@ -1273,13 +1369,16 @@ def special_form_vignette(request):
 @login_required
 @transaction.atomic
 def special_form_placement(request):
+    if not can_manage_reception(request):
+        raise PermissionDenied
     referer = request.META.get('HTTP_REFERER')
     if request.method == 'POST':
         form = ReceptionPlacementForm(request.POST)
-        if form.is_valid():
+        validation_error = reception_assignment_error(form)
+        if not validation_error:
             model_form = form.save(commit=False)
             task_id = model_form.employee1_schedule_item.task.id
-            task_identifier = model_form.employee1_schedule_item.task_identifier
+            task_identifier = schedule_service.reception_identifier(model_form.employee1_schedule_item.task_identifier)
             schedule_id = model_form.employee1_schedule_item.schedule.id
             average_duration = model_form.employee1_schedule_item.task.average_duration
 
@@ -1327,7 +1426,7 @@ def special_form_placement(request):
                     schedule_service.update_employee_task_from_item(model_form.employee3_schedule_item, assigned_delta)
             form.save()
         else:
-            messages.error(request, 'Affectation non enregistrée. Vérifiez les champs du formulaire.')
+            messages.error(request, validation_error)
         return redirect(referer or 'actual_schedule_details')
     return HttpResponseNotAllowed(['POST'])
 
@@ -1366,15 +1465,30 @@ def get_query_results(query, parameters):
         return {'error': str(ex)}
 
 
+@login_required
 def update_schedule_now(request, schedule_id=None):
-    referer = request.META.get('HTTP_REFERER')
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    schedule = get_object_or_404(Schedule, pk=schedule_id)
+    logged_data = getLoggedData(request)
+    can_manage = logged_data['leader'] or request.user.groups.filter(name='Admin').exists()
+    mine_only = request.POST.get('scope') == 'mine' or not can_manage
+    employee = logged_data['employee'] if mine_only else None
+    if mine_only and not employee:
+        messages.error(request, 'Aucun profil d’employé n’est associé à ce compte.')
+        return redirect(request.META.get('HTTP_REFERER') or 'home')
     try:
-        schedule = Schedule.objects.get(pk=schedule_id)
-        if schedule:
-            schedule_service.update_schedule_progress(schedule)
+        result = schedule_service.update_schedule_progress(schedule, employee=employee)
+        if result['failed']:
+            messages.warning(request, f"{result['failed']} tâche(s) n’ont pas pu être actualisées. Vérifiez la connexion et les requêtes Xpert.")
+        elif result['attempted']:
+            messages.success(request, 'Progression des tâches automatiques actualisée.')
+        else:
+            messages.info(request, 'Aucune tâche automatique à actualiser.')
     except Exception:
-        pass
-    return redirect(referer)
+        logger.exception('Unable to refresh schedule progress')
+        messages.error(request, 'Impossible d’actualiser les progressions. Vérifiez la configuration et réessayez.')
+    return redirect(request.META.get('HTTP_REFERER') or 'home')
 
 
 def finalize_schedule(request, schedule_id):
@@ -1787,8 +1901,27 @@ def actual_schedule_details(request, schedule_id=None):
 
     if sched_data:
         context.update(sched_data)
+        context['missing_reception_followups'] = schedule_service.missing_reception_followups(schedule)
 
     return render(request, 'schedule/actual_schedule_details.html', context)
+
+
+@login_required
+@transaction.atomic
+def restore_reception_followup(request, reception_id):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    if not can_manage_reception(request):
+        raise PermissionDenied
+    reception = get_object_or_404(Reception.objects.select_for_update().select_related('related_item__schedule'), pk=reception_id)
+    item = reception.related_item
+    if not item or (item.progression_rate or 0) < 100 or not schedule_service.reception_identifier(item.task_identifier):
+        messages.error(request, 'La réception doit être terminée et comporter une référence avant de créer l’étape suivante.')
+    elif schedule_service.generate_group_task(item, item.schedule):
+        messages.success(request, 'L’étape suivante est disponible pour affectation dans son TRT.')
+    else:
+        messages.error(request, 'Aucune règle de génération n’est configurée pour cette réception.')
+    return redirect('actual_schedule_details')
 
 
 @login_required
@@ -1839,9 +1972,9 @@ def schedule_current(request, schedule_id=None):
 
     if employee and employee.rank_id is not None:
         tasks_demande = Task.objects.filter(task_type__name='DEMANDE',
-                                            responsibility_level__gte=employee.rank).order_by('priority')
+                                            responsibility_level__value__gte=employee.rank.value).order_by('priority')
         tasks_saisie = Task.objects.filter(task_type__name='APRES SAISIE',
-                                           responsibility_level__gte=employee.rank).order_by('priority')
+                                           responsibility_level__value__gte=employee.rank.value).order_by('priority')
 
     context = {
         'current_schedule': current_schedule,

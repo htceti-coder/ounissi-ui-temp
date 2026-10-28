@@ -1,6 +1,7 @@
 <!-- special_forms/SaisieForm.html -->
 <h2>Assignation des Saisie</h2>
 <h3>{{ model_schedule_item.task }}</h3>
+{% include 'special_forms/assignment_context.html' %}
 <form id="popup_saisie_form" method="post" action="{% url 'form_saisie' %}">
     {% csrf_token %}
     <div>
@@ -51,8 +52,7 @@
     <input type="hidden" name="supplier" value="{{ original_task.supplier }}">
     <input type="hidden" name="ref_tiers" value="{{ original_task.ref_tiers }}">
     <input type="hidden" name="origine" value="{{ original_task.id }}">
-    <input type="hidden" name="ref_tiers" value="{{ original_task.ref_tiers }}">
     <input type="hidden" name="employee1_schedule_item" value="{{ model_schedule_item.id }}">
 
-    <button type="submit">Submit</button>
+    <button type="submit">Enregistrer l’affectation</button>
 </form>

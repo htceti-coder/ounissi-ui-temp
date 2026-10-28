@@ -386,7 +386,13 @@
         if (!$ || !$.fn || !$.fn.DataTable) return;
         $(scope || document).find("table.filtertable").each(function () {
             if ($.fn.DataTable.isDataTable(this)) return;
-            $(this).DataTable(dataTableOptions());
+            try {
+                $(this).DataTable(dataTableOptions());
+            } catch (error) {
+                // One malformed legacy table must not prevent form launchers
+                // and the rest of the page enhancements from starting.
+                console.warn("Unable to enhance table", this.id || "(no id)", error);
+            }
         });
     }
 

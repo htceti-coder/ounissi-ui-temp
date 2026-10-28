@@ -59,6 +59,7 @@ urlpatterns = [
 
     # Special Forms
     path('get_special_form', views.get_special_form, name='get_special_form'),
+    path('reception/<int:reception_id>/restore-followup/', views.restore_reception_followup, name='restore_reception_followup'),
     path('form_saisie', views.special_form_saisie, name='form_saisie'),
     path('form_reception_produit', views.special_form_produit, name='form_reception_produit'),
     path('form_reception_vignette', views.special_form_vignette, name='form_reception_vignette'),

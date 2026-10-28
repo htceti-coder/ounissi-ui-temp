@@ -38,7 +38,10 @@
     <button type="submit" class="btn btn-success">Valider</button>
 </form>
 {% if selected_schedule %}
-<a href="{% url 'update_schedule_now' schedule_id=selected_schedule.id %}"><i class="fa fa-cloud-download"></i></a>
+<form method="post" action="{% url 'update_schedule_now' schedule_id=selected_schedule.id %}">
+    {% csrf_token %}
+    <button type="submit"><i class="fa fa-refresh" aria-hidden="true"></i> Actualiser les tâches automatiques</button>
+</form>
 <form method="post" action="{% url 'finalize_schedule' schedule_id=selected_schedule.id %}">
     {% csrf_token %}
     <button type="submit" class="btn btn-primary">Finalize and Close Schedule</button>
@@ -255,12 +258,11 @@
 </table>
 </div>
     <!-- Modal for Form -->
-<div id="formModal" class="w3-modal" style="display: none">
+<div id="formModal" class="w3-modal" style="display: none" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="task-form-title">
     <div class="w3-modal-content w3-animate-top w3-card-4">
         <header class="w3-container w3-teal">
-            <span onclick="document.getElementById('formModal').style.display='none'"
-            class="w3-button w3-display-topright">&times;</span>
-            <h2>Task Form</h2>
+            <button type="button" class="w3-button w3-display-topright" data-task-form-close aria-label="Fermer">&times;</button>
+            <h2 id="task-form-title">Affecter une tâche</h2>
         </header>
         <div id="formContainer" class="w3-container">
             {% include 'special_forms/special_form.html' %}
@@ -281,47 +283,9 @@
 // Wait for the DOM to fully load
 document.addEventListener('DOMContentLoaded', function() {
 
-    const formButtons = document.querySelectorAll('.form_lookup_button');
-    formButtons.forEach(button => {
-        button.addEventListener('click', submitForm);
-    });
-
     initializeProgressionRateSelects();
 });
 
-// Submit the form asynchronously
-    function submitForm(event) {
-    event.preventDefault(); // Prevent default form submission
-
-    // Serialize form data
-    const form = event.target.closest('form');
-    const formData = new FormData(form);
-
-    fetch('/get_special_form', {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': '{{ csrf_token }}'
-        }
-    })
-    .then(response => {
-        return response.text();
-    })
-    .then(data => {
-        // Add the form to the modal
-        const formContainer = document.getElementById('formContainer');
-        formContainer.innerHTML = data;
-
-        // Show the modal
-        document.getElementById('formModal').style.display = 'block';
-    })
-    .catch(error => {
-        const formContainer = document.getElementById('formContainer');
-        formContainer.textContent = 'Impossible de charger le formulaire. Vérifiez votre connexion.';
-        document.getElementById('formModal').style.display = 'block';
-    });
-}
 // Function to handle tab switching
 function openTab(evt, tabName) {
   // Get all elements with class="table-container"

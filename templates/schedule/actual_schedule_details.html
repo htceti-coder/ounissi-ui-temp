@@ -34,7 +34,10 @@
 </style>
 
 {% if actual%}
-<a href="{% url 'update_schedule_now' schedule_id=selected_schedule.id %}"><i class="fa fa-cloud-download"></i></a>
+<form method="post" action="{% url 'update_schedule_now' schedule_id=selected_schedule.id %}">
+    {% csrf_token %}
+    <button type="submit"><i class="fa fa-refresh" aria-hidden="true"></i> Actualiser les tâches automatiques</button>
+</form>
 <form method="post" action="{% url 'finalize_schedule' schedule_id=selected_schedule.id %}">
     {% csrf_token %}
     <button type="submit" class="btn btn-primary">Finalize and Close Schedule</button>
@@ -94,6 +97,27 @@
     </div>
 <!--</div>-->
 
+{% if missing_reception_followups %}
+<section class="app-alert app-alert--warning" aria-label="Réceptions sans étape suivante">
+  <div>
+    <strong>Réceptions sans étape suivante dans ce TRT</strong>
+    {% for missing in missing_reception_followups %}
+      <div class="w3-margin-top">
+        {{ missing.reception.supplier }} — {{ missing.reception.ref_tiers|default_if_none:'Référence manquante' }}
+        {% if missing.can_restore %}
+          <form method="post" action="{% url 'restore_reception_followup' missing.reception.id %}">
+            {% csrf_token %}
+            <button type="submit">Créer {{ missing.next_task }}</button>
+          </form>
+        {% else %}
+          <span>Vérifiez la référence et la règle de génération de la tâche.</span>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <h2>Taches Non Assignees</h2>
     <table class="filtertable">
         <thead>
@@ -107,26 +131,29 @@
             {% for schedule_item in non_assigned_items %}
                 <tr>
                     {% if schedule_item.task_identifier != Null%}
-                         <td>{{ schedule_item.task }}:{{schedule_item.task_identifier}}</td>
+                         <td>{{ schedule_item.task }}:{{schedule_item.task_identifier}}
+                           {% if schedule_item.previous_step_missing %}<br><small>Étape précédente introuvable — vérifiez la référence et la configuration</small>
+                           {% elif not schedule_item.previous_step_complete %}<br><small>Étape précédente en cours — affectation possible</small>{% endif %}
+                         </td>
                     {% else %}
                         <td>{{ schedule_item.task }}</td>
                     {% endif %}
                         <td>{{ schedule_item.task.priority }} </td>
                         <td>
-                            <form id="get_special_form" method="post" action="/get_special_form">
+                            <form method="post" action="{% url 'get_special_form' %}">
                                 {% csrf_token %}
                                     <input type="hidden" name="task_id" value="{{ schedule_item.task.id }}">
                                     <input type="hidden" name="selected_schedule" value="{{ selected_schedule.id }}">
                                     <input type="hidden" name="task_identifier" value="{{ schedule_item.task_identifier|default_if_none:'' }}">
                                     <input type="hidden" name="schedule_item" value="{{ schedule_item.id }}">
-                                    <button type="button" class="form_lookup_button">Ajouter</button>
+                                    <button type="button" class="form_lookup_button" data-task-form-open>Affecter</button>
                             </form>
                         </td>
                 </tr>
             {% endfor %}
-
         </tbody>
     </table>
+    {% if not non_assigned_items %}<p>Aucune tâche de réception à affecter pour le moment.</p>{% endif %}
 <h1>Taches En Cours</h1>
 <h2>Manuelles</h2>
 <table class="filtertable">
@@ -368,7 +395,6 @@
           <td>{{ task.task.priority }}</td>
           <td>{{ task.task.task_name }}</td>
           <td>{{ task.total_assigned_time }}</td>
-          <td>{{ task.completion }} %</td>
           <td>
               <div class="w3-grey">
                   <div class="w3-container w3-left w3-green" style="width:clamp(0%, {{ task.completion|default_if_none:0 }}%, 100%)">{{ task.completion|default_if_none:0 }}%</div>
@@ -436,12 +462,11 @@
 </form>
 </div>
     <!-- Modal for Form -->
-<div id="formModal" class="w3-modal" style="display: none">
+<div id="formModal" class="w3-modal" style="display: none" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="task-form-title">
     <div class="w3-modal-content w3-animate-top w3-card-4">
         <header class="w3-container w3-teal">
-            <span onclick="document.getElementById('formModal').style.display='none'"
-            class="w3-button w3-display-topright">&times;</span>
-            <h2>Task Form</h2>
+            <button type="button" class="w3-button w3-display-topright" data-task-form-close aria-label="Fermer">&times;</button>
+            <h2 id="task-form-title">Affecter une tâche</h2>
         </header>
         <div id="formContainer" class="w3-container">
             {% include 'special_forms/special_form.html' %}
@@ -460,47 +485,9 @@
 // Wait for the DOM to fully load
 document.addEventListener('DOMContentLoaded', function() {
 
-    const formButtons = document.querySelectorAll('.form_lookup_button');
-    formButtons.forEach(button => {
-        button.addEventListener('click', submitForm);
-    });
-
     initializeProgressionRateSelects();
 });
 
-// Submit the form asynchronously
-    function submitForm(event) {
-    event.preventDefault(); // Prevent default form submission
-
-    // Serialize form data
-    const form = event.target.closest('form');
-    const formData = new FormData(form);
-
-    fetch('/get_special_form', {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': '{{ csrf_token }}'
-        }
-    })
-    .then(response => {
-        return response.text();
-    })
-    .then(data => {
-        // Add the form to the modal
-        const formContainer = document.getElementById('formContainer');
-        formContainer.innerHTML = data;
-
-        // Show the modal
-        document.getElementById('formModal').style.display = 'block';
-    })
-    .catch(error => {
-        const formContainer = document.getElementById('formContainer');
-        formContainer.textContent = 'Impossible de charger le formulaire. Vérifiez votre connexion.';
-        document.getElementById('formModal').style.display = 'block';
-    });
-}
 // Function to handle tab switching
 function openTab(evt, tabName) {
   // Get all elements with class="table-container"

@@ -879,3 +879,5 @@ html[data-theme="dark"] .ounissi-app .progress-value-label { color: var(--ui-mut
     body.ounissi-app { background: white !important; }
     .table-scroll-shell { overflow: visible; border: 0; box-shadow: none; }
 }
+/* A form action must stay hidden while its modal is loading or showing an error. */
+.ounissi-app [data-task-form-submit][hidden] { display: none !important; }

@@ -1,0 +1,9 @@
+<p><strong>Fournisseur :</strong> {{ original_task.supplier }} &nbsp; <strong>Facture / BL :</strong> {{ original_task.ref_tiers }}</p>
+{% if not model_employees %}
+<div class="app-alert app-alert--warning" role="alert">
+  Aucun employé éligible dans ce TRT. Vérifiez les employés du TRT et le niveau de responsabilité de la tâche.
+</div>
+{% endif %}
+{% if invoice_warning %}
+<div class="app-alert app-alert--warning" role="alert">{{ invoice_warning }}</div>
+{% endif %}

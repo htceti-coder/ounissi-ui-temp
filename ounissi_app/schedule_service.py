@@ -1,12 +1,13 @@
 from datetime import timedelta
+import re
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.apps import apps
-from django.db import connection
-from django.db.models import Sum, F, FloatField
+from django.db import connection, transaction
+from django.db.models import Sum, F, FloatField, Q
 from django.db.models.functions import Cast
 from accounts.models import Employee
-from .models import Schedule, ScheduleItem, ScheduleTask, ScheduleEmployee, TaskGeneration, Task, User
+from .models import Reception, Schedule, ScheduleItem, ScheduleTask, ScheduleEmployee, TaskGeneration, Task, User
 from .xpertcon import XpertConnect
 
 import logging
@@ -77,25 +78,29 @@ def get_schedule_context_data(schedule, employee=None):
     else:
         context['schedule_items'] = ScheduleItem.objects.filter(schedule=schedule, employee__isnull=False)
 
-    # Logic for unassigned/ready items
-    no_employee_items = ScheduleItem.objects.filter(schedule=schedule, employee__isnull=True)
+    # Managers may plan later reception steps before their predecessors are
+    # finished.  Keep the predecessor status visible, but never use it as an
+    # assignment gate.
+    no_employee_items = ScheduleItem.objects.filter(schedule=schedule, employee__isnull=True).select_related('task')
     non_assigned_items = []
-
     for item in no_employee_items:
         original_item = get_original_item(item)
-        if original_item:
-            ready = True
-            upper_items = ScheduleItem.objects.filter(
-                schedule=schedule,
-                task=original_item.task,
-                task_identifier__contains=original_item.task_identifier.split('Lines')[0]
-            )
-            for upper_item in upper_items:
-                if upper_item.progression_rate < 100:
-                    ready = False
-
-            if ready:
+        if not original_item:
+            # Keep orphaned generated tasks visible so a manager can diagnose
+            # their configuration instead of silently losing the assignment.
+            if reception_identifier(item.task_identifier):
+                item.previous_step_missing = True
                 non_assigned_items.append(item)
+            continue
+        previous_items = process_items(
+            ScheduleItem.objects.filter(schedule=original_item.schedule, task=original_item.task),
+            item.task_identifier,
+        )
+        assigned_previous = [previous for previous in previous_items if previous.employee_id]
+        item.previous_step_complete = bool(assigned_previous) and all(
+            (previous.progression_rate or 0) >= 100 for previous in assigned_previous
+        )
+        non_assigned_items.append(item)
 
     context['non_assigned_items'] = non_assigned_items
     return context
@@ -125,53 +130,75 @@ def run_raw_query(query_obj, parameters):
 
 
 def get_item_progress(item_id):
-    """Calculates progress for a single ScheduleItem using the new raw dict format."""
-    schedule_item = ScheduleItem.objects.select_related('employee', 'schedule', 'task__progress_query').get(pk=item_id)
+    """Refresh one auto task; a failed query must not erase saved progress."""
+    item = ScheduleItem.objects.select_related('employee', 'schedule', 'task__progress_query').get(pk=item_id)
+    query = item.task.progress_query
+    if not query or not item.employee_id or not item.schedule.date:
+        return False
 
-    if not schedule_item.task.progress_query:
-        return
+    parameters = dict(query.parameters or {})
+    model_name = parameters.pop('model_name', None)
+    if (query.type == 1 or 'xp_id' in parameters) and not item.employee.xp_id:
+        logger.warning('Employee has no Xpert identifier for schedule item %s', item.pk)
+        return False
+    parameters.update({
+        'start_date': item.schedule.date,
+        'end_date': item.schedule.date + timedelta(days=1),
+        'xp_id': item.employee.xp_id,
+    })
 
-    xp_id = schedule_item.employee.xp_id
-    parameters = {
-        "start_date": schedule_item.schedule.date,
-        "end_date": schedule_item.schedule.date + timedelta(days=1),
-        "xp_id": xp_id
-    }
-
-    if schedule_item.task_identifier:
+    needs_invoice = any(name in parameters for name in ('supplier', 'ref_tiers'))
+    if needs_invoice and (not model_name or not reception_identifier(item.task_identifier)):
+        logger.warning('Invoice progress query for schedule item %s has no model_name or reference', item.pk)
+        return False
+    if item.task_identifier and model_name:
         try:
-            model_name = schedule_item.task.progress_query.parameters.get('model_name')
-            if model_name:
-                model = apps.get_model('ounissi_app', model_name)
-                items = get_related_item_details(schedule_item, model)
-                if items:
-                    parameters['supplier'] = items[0].supplier
-                    parameters['ref_tiers'] = items[0].ref_tiers
-        except Exception as ex:
-            logger.error(f"Progress Params Exception: {ex}")
+            model = apps.get_model('ounissi_app', model_name)
+            field_names = {field.name for field in model._meta.get_fields()}
+            if {'supplier', 'ref_tiers'}.issubset(field_names):
+                details = get_related_item_details(item, model)
+                if not details:
+                    logger.warning('No related reception details for schedule item %s', item.pk)
+                    return False
+                parameters['supplier'] = details[0].supplier
+                parameters['ref_tiers'] = details[0].ref_tiers
+                if not parameters['supplier'] or not parameters['ref_tiers']:
+                    logger.warning('Incomplete invoice reference for schedule item %s', item.pk)
+                    return False
+            elif needs_invoice:
+                logger.warning('Invoice model for schedule item %s does not contain supplier and reference', item.pk)
+                return False
+        except Exception:
+            logger.exception('Unable to prepare progress parameters for schedule item %s', item.pk)
+            return False
 
-    results = run_raw_query(schedule_item.task.progress_query, parameters)
-
-    if results and len(results['data_rows']) > 0:
-        try:
-            # Find the index of NBR_LINES safely
-            col_idx = results['columns'].index('NBR_LINES')
-            nbr_lines = results['data_rows'][0][col_idx]
-
-            if nbr_lines:
-                schedule_item.progress_lines = int(nbr_lines)
-                # Calculate assigned duration in seconds
-                assigned_sec = schedule_item.assigned_time.total_seconds()
-                task_sec = schedule_item.task.average_duration.total_seconds()
-
-                auto_progress_sec = nbr_lines * task_sec
-                if assigned_sec > 0:
-                    schedule_item.progression_rate = int((auto_progress_sec / assigned_sec) * 100)
-                schedule_item.save(update_fields=['progress_lines', 'progression_rate'])
-        except ValueError:
-            logger.warning("NBR_LINES not found in query results.")
-        except Exception as ex:
-            logger.error(f"Progress calculation error: {ex}")
+    results = run_raw_query(query, parameters)
+    if not isinstance(results, dict) or 'error' in results:
+        return False
+    try:
+        columns = results['columns']
+        rows = results['data_rows']
+        col_idx = columns.index('NBR_LINES')
+        if len(rows) > 1:
+            # Without the live query's grouping contract, summing or choosing
+            # an arbitrary row could attribute another invoice/day to a task.
+            raise ValueError('Progress query must return at most one row per assigned task')
+        nbr_lines = int(rows[0][col_idx] or 0) if rows else 0
+        if nbr_lines < 0 or item.task.average_duration is None:
+            raise ValueError('Invalid line count or task duration')
+        assigned_sec = item.assigned_time.total_seconds()
+        task_sec = item.task.average_duration.total_seconds()
+        if task_sec < 0:
+            raise ValueError('Invalid task duration')
+        # TOTAL_TIME in Xpert is NBR_LINES × the configured per-line time.
+        # The application uses its configured task duration for this calculation.
+        item.progress_lines = nbr_lines
+        item.progression_rate = int((nbr_lines * task_sec / assigned_sec) * 100) if assigned_sec > 0 else 0
+        item.save(update_fields=['progress_lines', 'progression_rate'])
+        return True
+    except (KeyError, IndexError, TypeError, ValueError, AttributeError):
+        logger.warning('Invalid progress result for schedule item %s', item.pk, exc_info=True)
+        return False
 
 
 #
@@ -246,22 +273,26 @@ def update_schedule_progress(schedule, employee=None):
     else:
         schedule_items = ScheduleItem.objects.filter(schedule=schedule, employee__isnull=False)
 
+    attempted = 0
+    failed = 0
     for item in schedule_items:
         if item.task.progress_query and item.task.progress_query.query != 'N/A':
-            get_item_progress(item.id)
+            attempted += 1
+            if not get_item_progress(item.id):
+                failed += 1
 
     # Updating employees scores
     for sched_emp in ScheduleEmployee.objects.filter(schedule=schedule):
-        score = sum(i.progress_lines / i.task.priority for i in
+        score = sum((i.progress_lines or 0) / i.task.priority for i in
                     ScheduleItem.objects.filter(employee=sched_emp.employee, schedule=schedule) if i.task.priority)
         sched_emp.score = score
         sched_emp.save(update_fields=['score'])
 
     # Updating Tasks Completion
     for sched_task in ScheduleTask.objects.filter(schedule=schedule):
-        completion_sec = sum((i.progression_rate / 100) * i.assigned_time.total_seconds() for i in
+        completion_sec = sum(((i.progression_rate or 0) / 100) * i.assigned_time.total_seconds() for i in
                              ScheduleItem.objects.filter(task=sched_task.task, schedule=schedule))
-        total_sec = sched_task.total_assigned_time.total_seconds()
+        total_sec = (sched_task.total_assigned_time or timedelta()).total_seconds()
 
         if total_sec > 0:
             sched_task.completion = int((completion_sec / total_sec) * 100)
@@ -271,19 +302,77 @@ def update_schedule_progress(schedule, employee=None):
         else:
             sched_task.delete()
 
+    return {'attempted': attempted, 'failed': failed}
+
 
 # --- UTILITY HELPERS ---
 
+_LINE_SUFFIX = re.compile(r'(?:Lines:\d+<>\d+)+$')
+
+
+def reception_identifier(identifier):
+    """Remove only generated line-range suffixes, not text within a reference."""
+    return _LINE_SUFFIX.sub('', identifier or '')
+
+
+def process_items(queryset, identifier):
+    """Find the exact supplier/reference, including its generated line ranges."""
+    base = reception_identifier(identifier)
+    if not base:
+        return []
+    candidates = queryset.filter(Q(task_identifier=base) | Q(task_identifier__startswith=base + 'Lines:'))
+    return [candidate for candidate in candidates if reception_identifier(candidate.task_identifier) == base]
+
+
 def get_original_item(item):
-    try:
-        generation = TaskGeneration.objects.filter(generated_task=item.task).first()
-        if generation:
-            task_identifier = item.task_identifier.split('Lines')[0] if item.task_identifier else ""
-            return ScheduleItem.objects.filter(task=generation.parent_task,
-                                               task_identifier__contains=task_identifier).first()
-    except Exception as ex:
-        logger.error(f'Error getting original item: {ex}')
-    return None
+    generation = TaskGeneration.objects.filter(generated_task=item.task).order_by('order', 'pk').first()
+    if not generation or not reception_identifier(item.task_identifier):
+        return None
+
+    # Prefer a parent in this TRT.  Transferred reception steps may only have a
+    # matching parent in an earlier TRT; use the most recent exact match then.
+    parents = ScheduleItem.objects.filter(task=generation.parent_task).select_related('schedule')
+    local = process_items(parents.filter(schedule=item.schedule).order_by('pk'), item.task_identifier)
+    if local:
+        return next((parent for parent in local if parent.task_identifier == item.task_identifier), local[0])
+    earlier = parents.filter(schedule__is_template=False)
+    if item.schedule.date:
+        earlier = earlier.filter(
+            Q(schedule__date__lt=item.schedule.date) |
+            Q(schedule__date=item.schedule.date, schedule__start_time__lte=item.schedule.start_time)
+        )
+    matches = process_items(earlier.order_by('-schedule__date', '-schedule__start_time', '-pk'), item.task_identifier)
+    return matches[0] if matches else None
+
+
+def missing_reception_followups(schedule):
+    """Identify completed legacy receptions whose next step is absent in this TRT."""
+    if not schedule:
+        return []
+    receptions = list(Reception.objects.filter(
+        related_item__schedule=schedule, related_item__progression_rate__gte=100,
+    ).select_related('related_item__task'))
+    parent_ids = {reception.related_item.task_id for reception in receptions}
+    generations = {}
+    for generation in TaskGeneration.objects.filter(parent_task_id__in=parent_ids).select_related('generated_task').order_by('order', 'pk'):
+        generations.setdefault(generation.parent_task_id, generation)
+    existing = {
+        (task_id, reception_identifier(identifier))
+        for task_id, identifier in ScheduleItem.objects.filter(schedule=schedule).values_list('task_id', 'task_identifier')
+        if identifier
+    }
+    missing = []
+    for reception in receptions:
+        identifier = reception_identifier(reception.related_item.task_identifier)
+        generation = generations.get(reception.related_item.task_id)
+        if generation and identifier and (generation.generated_task_id, identifier) in existing:
+            continue
+        missing.append({
+            'reception': reception,
+            'next_task': generation.generated_task if generation else None,
+            'can_restore': bool(generation and identifier),
+        })
+    return missing
 
 
 def get_related_item_details(schedule_item, model):
@@ -332,7 +421,7 @@ def update_employee_task_from_item(schedule_item, assigned_delta):
         defaults={'total_assigned_time': schedule_item.assigned_time}
     )
     if not created:
-        sched_emp.total_assigned_time += assigned_delta
+        sched_emp.total_assigned_time = (sched_emp.total_assigned_time or timedelta()) + assigned_delta
         sched_emp.save()
 
     sched_task, created = ScheduleTask.objects.get_or_create(
@@ -340,20 +429,28 @@ def update_employee_task_from_item(schedule_item, assigned_delta):
         defaults={'total_time': schedule_item.assigned_time, 'total_assigned_time': schedule_item.assigned_time}
     )
     if not created:
-        sched_task.total_assigned_time += assigned_delta
+        sched_task.total_assigned_time = (sched_task.total_assigned_time or timedelta()) + assigned_delta
         sched_task.save()
 
 
 def generate_group_task(schedule_item, schedule):
-    try:
-        generation = TaskGeneration.objects.filter(parent_task=schedule_item.task).first()
-        if generation:
-            ScheduleItem.objects.create(
-                schedule=schedule,
-                task=generation.generated_task,
-                task_identifier=schedule_item.task_identifier
-            )
+    """Create the configured next step once, unassigned, for this reception."""
+    generation = TaskGeneration.objects.filter(parent_task=schedule_item.task).order_by('order', 'pk').first()
+    if not generation:
+        return False
+    identifier = reception_identifier(schedule_item.task_identifier)
+    with transaction.atomic():
+        # Serialize requests for the same TRT so double submissions do not
+        # generate duplicate next steps on databases with row-level locks.
+        Schedule.objects.select_for_update().get(pk=schedule.pk)
+        existing = process_items(
+            ScheduleItem.objects.filter(schedule=schedule, task=generation.generated_task), identifier,
+        )
+        if existing:
             return True
-    except Exception as ex:
-        logger.error(f"Generation Error: {ex}")
-    return False
+        ScheduleItem.objects.create(
+            schedule=schedule,
+            task=generation.generated_task,
+            task_identifier=identifier or schedule_item.task_identifier,
+        )
+    return True

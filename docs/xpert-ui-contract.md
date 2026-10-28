@@ -23,8 +23,11 @@ The examples may contain names and commercially sensitive information. Treat the
 
 ## Workflows and open questions
 
-* The existing progress service sends a schedule date range and employee `xp_id` to the task's configured progress query. It currently uses the first returned `NBR_LINES` and the task's average duration; it does not use the sample's `TOTAL_TIME`. Confirm the live SQL's filtering and grouping before changing this calculation, especially if a query can return more than one row for an employee and date.
-* The existing reception chain is `Reception → Saisie → ReceptionProduit → ReceptionVignette → ReceptionPlacement`. Forms are opened from an actual TRT task, which supplies the parent record, supplier and reference. Invoice details come from `InvoiceHelper`. The save handlers currently allocate `current task average_duration × assigned line count`; the form's displayed duration follows that same rule. Confirm with the business owner whether quantities or another duration rule should instead be used.
+* Each task has a configured per-line duration. Xpert's `TOTAL_TIME` represents that duration multiplied by `NBR_LINES` (for example, 11 × 45 seconds = 495 seconds). The progress service uses the application's configured `Task.average_duration` and `NBR_LINES`, with the schedule date, the following day as `end_date`, and the employee `xp_id`. It expects at most one row for an assigned task; multiple rows are ambiguous and leave the saved progress unchanged with a warning. Confirm the live query's filters, date-boundary semantics and grouping, and that its per-line duration matches the application's configuration.
+* The TRT reception chain is `Reception → Saisie → ReceptionProduit → ReceptionVignette → ReceptionPlacement`. An employee submits the reception form, which creates the next step unassigned. The manager assigns each step using the recorded supplier, invoice reference and line count. Managers can assign later steps immediately after assigning their predecessors; the employees may work in parallel, even if earlier steps are incomplete. Assignment duration is the current task's configured per-line duration × assigned line count. Reception assignments are restricted to Admins and team leaders, with employees selected from eligible members of that TRT.
+* `InvoiceHelper` is an optional preview for the later steps: Xpert may have no invoice lines yet while entry is still in progress. Assignment uses the manager-entered line count and remains possible with a visible warning if the preview is empty or unavailable. Automatic task progress can be refreshed explicitly from the employee or manager TRT screen; failed queries leave the last saved progress intact and display a warning.
+* Legacy completed receptions with a missing follow-up in the current TRT are flagged for a manager to restore explicitly. Matching prefers the same TRT and an exact supplier/reference; transferred steps can use the nearest earlier matching TRT. Existing data does not contain an explicit parent ID on every schedule item, so identical supplier/reference pairs across separate receptions can still be ambiguous.
+* Employee submission for manual reception steps is outside this change; the existing manager progress controls remain in place. The details of employee reporting and manager validation still need to be specified.
 * The separate reception V3 models do not define how their steps map to real `Task` and `ScheduleItem` records. Its dashboard is read-only, and its bulk-assignment API returns an unavailable response until that mapping is designed. Use the existing TRT workflow for assignments.
 * A missing Xpert audit connection is not equivalent to an empty audit result. The attendance screen and its Excel export flag an unavailable audit explicitly.
 
@@ -39,6 +42,7 @@ python -m venv .venv
 pip install -r requirements.txt
 python manage.py test
 node tests/line_allocation.test.js  # optional JavaScript regression checks
+node tests/task_form_modal.test.js
 ```
 
 The tests use temporary SQLite databases and mock the Xpert connection. A live end-to-end check still requires the configured SQL Server, its queries, network access and an appropriate ODBC driver.

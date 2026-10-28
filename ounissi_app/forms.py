@@ -237,6 +237,7 @@ class ReceptionForm(forms.ModelForm):
         self.fields['supplier'].choices = self.get_supplier_choices()
         self.fields['supplier'].widget.attrs['class'] = 'select'
         self.fields['supplier'].required = True
+        self.fields['ref_tiers'].required = True
 
         for field_name in ['cold_chain', 'psycho', 'correct_destination', 'products_type']:
             self.fields[field_name].widget = forms.Select(choices=self.YES_NO_CHOICES)
@@ -255,7 +256,8 @@ class ReceptionForm(forms.ModelForm):
         # Set the task_identifier based on supplier and ref_tiers
         supplier = cleaned_data.get('supplier')
         ref_tiers = cleaned_data.get('ref_tiers')
-        cleaned_data['task_identifier'] = f"{supplier}#{ref_tiers}"
+        if supplier and ref_tiers:
+            cleaned_data['task_identifier'] = f"{supplier}#{ref_tiers}"
 
         return cleaned_data
 

@@ -140,12 +140,13 @@ class UIWorkflowTests(TestCase):
         _, item = self.make_reception_workflow()
         run_query.return_value = {'error': 'secret connection details'}
         response = self.client.post(reverse('get_special_form'), {'task_id': item.task_id, 'schedule_item': item.id})
-        self.assertEqual(response.status_code, 422)
-        self.assertContains(response, 'La requête n’a pas pu être exécutée', status_code=422)
-        self.assertNotContains(response, 'secret connection details', status_code=422)
+        self.assertContains(response, 'Le détail de la facture n’a pas pu être chargé')
+        self.assertContains(response, 'Enregistrer l’affectation')
+        self.assertNotContains(response, 'secret connection details')
         run_query.return_value = {'columns': ['QUANTITE'], 'data_rows': []}
         response = self.client.post(reverse('get_special_form'), {'task_id': item.task_id, 'schedule_item': item.id})
-        self.assertContains(response, 'Aucune ligne trouvée', status_code=422)
+        self.assertContains(response, 'Le détail de la facture n’est pas encore disponible')
+        self.assertContains(response, 'Enregistrer l’affectation')
 
     def test_reception_ranges_are_validated_server_side(self):
         source, item = self.make_reception_workflow()
@@ -174,7 +175,10 @@ class UIWorkflowTests(TestCase):
 
     def test_valid_reception_submission_creates_two_schedule_items(self):
         source, item = self.make_reception_workflow()
+        source.number_of_lines = 4
+        source.save(update_fields=['number_of_lines'])
         second = Employee.objects.create(first_name='Second', rank=self.rank)
+        ScheduleEmployee.objects.create(employee=second, schedule=self.schedule)
         response = self.client.post(reverse('form_reception_produit'), {
             'supplier': source.supplier, 'ref_tiers': source.ref_tiers, 'origine': source.pk,
             'number_of_lines': 4, 'employee1': self.employee.pk, 'employee2': second.pk,
@@ -248,7 +252,8 @@ class UIWorkflowTests(TestCase):
             response = self.client.get(reverse('home'))
         self.assertContains(response, 'width:clamp(0%, 75%, 100%)')
         self.assertContains(response, 'class="form_lookup_form"', count=2)
-        self.assertContains(response, "event.currentTarget.closest('form')")
+        self.assertContains(response, 'data-task-form-open', count=2)
+        self.assertContains(response, 'js/task_form_modal.js')
 
     def test_reception_v3_renders_as_read_only(self):
         process = ReceptionProcess.objects.create(supplier='Supplier', ref_tiers='INV-1')
@@ -325,7 +330,7 @@ class UIWorkflowTests(TestCase):
         self.query('LISTE FOURNISSEURS', {'actif': '1'})
         connector.return_value.run_query.return_value = sample_result('LISTE FOURNISSEURS')
         query = self.query('Reception progress', {'model_name': 'Reception'})
-        task = Task.objects.create(task_name='Réception test', responsibility_level=self.rank, average_duration=timedelta(minutes=1), progress_query=query)
+        task = Task.objects.create(task_name='Réception test', responsibility_level=self.rank, average_duration=timedelta(minutes=1), progress_query=query, menu=True)
         supplier = SAMPLES['LISTE FOURNISSEURS']['sample_data'][0][0]
         data = {
             'supplier': supplier, 'ref_tiers': 'FACT-1', 'number_of_packs': '',
@@ -465,6 +470,8 @@ class UIWorkflowTests(TestCase):
 
     def test_failed_reception_assignment_rolls_back_schedule_updates(self):
         source, item = self.make_reception_workflow()
+        source.number_of_lines = 2
+        source.save(update_fields=['number_of_lines'])
         original_employee = item.employee_id
         original_time = item.assigned_time
         with patch('ounissi_app.schedule_service.generate_group_task', side_effect=RuntimeError('failure')):
