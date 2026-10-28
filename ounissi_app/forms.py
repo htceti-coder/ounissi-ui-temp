@@ -1,10 +1,14 @@
 from datetime import date
+import logging
 from django import forms
 from django.contrib import admin
 from .models import *
 from accounts.models import Employee
 from .salary_calculator import SalaryCalculator
 from .xpertcon import XpertConnect
+from .query_results import column_values
+
+logger = logging.getLogger(__name__)
 
 
 class TimesheetForm(forms.ModelForm):
@@ -233,13 +237,11 @@ class ReceptionForm(forms.ModelForm):
         self.fields['supplier'].choices = self.get_supplier_choices()
         self.fields['supplier'].widget.attrs['class'] = 'select'
         self.fields['supplier'].required = True
+        self.fields['ref_tiers'].required = True
 
         for field_name in ['cold_chain', 'psycho', 'correct_destination', 'products_type']:
             self.fields[field_name].widget = forms.Select(choices=self.YES_NO_CHOICES)
             self.fields[field_name].widget.attrs['required'] = 'required'
-
-        self.fields['correct_destination'].widget = forms.Select(choices=((None, 'Non'), (True, 'Oui')))
-        self.fields['correct_destination'].widget.attrs['required'] = 'required'
 
         # Add a hidden field for task_identifier
         self.fields['task_identifier'] = forms.CharField(widget=forms.HiddenInput(), required=False)
@@ -254,40 +256,20 @@ class ReceptionForm(forms.ModelForm):
         # Set the task_identifier based on supplier and ref_tiers
         supplier = cleaned_data.get('supplier')
         ref_tiers = cleaned_data.get('ref_tiers')
-        cleaned_data['task_identifier'] = f"{supplier}#{ref_tiers}"
+        if supplier and ref_tiers:
+            cleaned_data['task_identifier'] = f"{supplier}#{ref_tiers}"
 
         return cleaned_data
 
     def get_supplier_choices(self):
         try:
-            xpert_connect = XpertConnect()
-
             query = Query.objects.get(name='LISTE FOURNISSEURS')
-
-            results = xpert_connect.run_query(
-                query.query,
-                parameters={}
-            )
-
-            columns = results['columns']
-            data_rows = results['data_rows']
-
-            # Find the SupplierName column
-            supplier_index = columns.index('SupplierName')
-
-            suppliers = [
-                (row[supplier_index], row[supplier_index])
-                for row in data_rows
-                if row[supplier_index] is not None
-            ]
-
-            suppliers.insert(0, ('', ''))
-
-            return suppliers
-
-        except Exception as e:
-            print(f"Error loading suppliers: {e}")
-            return [('', ''), ('Error:', str(e))]
+            results = XpertConnect().run_query(query.query, parameters=query.parameters)
+            suppliers = column_values(results, 'SupplierName')
+            return [('', '')] + [(name, name) for name in suppliers if name is not None]
+        except Exception:
+            logger.exception('Unable to load supplier choices from Xpert')
+            return [('', 'Impossible de charger les fournisseurs')]
 
     # def get_supplier_choices(self):
     #     # Fetch suppliers from the database using your XpertConnect class
@@ -321,25 +303,62 @@ class ReceptionForm(forms.ModelForm):
         }
 
 
-class SaisieForm(forms.ModelForm):
+class LineAssignmentMixin:
+    """Validate the ranges that the reception assignment screens submit."""
+    def clean(self):
+        data = super().clean()
+        count = data.get('number_of_lines')
+        if count is not None and count < 1:
+            self.add_error('number_of_lines', 'Indiquez au moins une ligne.')
+        if not data.get('employee1'):
+            self.add_error('employee1', 'Sélectionnez le premier employé.')
+        if not data.get('employee1_schedule_item'):
+            self.add_error('employee1_schedule_item', 'La tâche du TRT est obligatoire.')
+        if data.get('employee3') and not data.get('employee2'):
+            self.add_error('employee3', 'Sélectionnez d’abord le deuxième employé.')
+
+        seen = set()
+        ranges = []
+        for i in (1, 2, 3):
+            employee = data.get(f'employee{i}')
+            start_field = f'employee{i}_range_start'
+            end_field = f'employee{i}_range_end'
+            start, end = data.get(start_field), data.get(end_field)
+            if not employee:
+                if start is not None or end is not None:
+                    self.add_error(f'employee{i}', 'Sélectionnez un employé pour cette plage.')
+                continue
+            if employee.pk in seen:
+                self.add_error(f'employee{i}', 'Choisissez des employés différents.')
+            seen.add(employee.pk)
+            if start is None or end is None or start < 1 or end < start or (count is not None and end > count):
+                self.add_error(end_field, 'Vérifiez les limites des lignes affectées.')
+                continue
+            if any(start <= other_end and end >= other_start for other_start, other_end in ranges):
+                self.add_error(end_field, 'Les plages des employés ne doivent pas se chevaucher.')
+            ranges.append((start, end))
+        return data
+
+
+class SaisieForm(LineAssignmentMixin, forms.ModelForm):
     class Meta:
         model = Saisie
         fields = '__all__'  # Include all model fields
 
 
-class ReceptionProduitForm(forms.ModelForm):
+class ReceptionProduitForm(LineAssignmentMixin, forms.ModelForm):
     class Meta:
         model = ReceptionProduit
         fields = '__all__'  # Include all model fields
 
 
-class ReceptionVignetteForm(forms.ModelForm):
+class ReceptionVignetteForm(LineAssignmentMixin, forms.ModelForm):
     class Meta:
         model = ReceptionVignette
         fields = '__all__'  # Include all model fields
 
 
-class ReceptionPlacementForm(forms.ModelForm):
+class ReceptionPlacementForm(LineAssignmentMixin, forms.ModelForm):
     class Meta:
         model = ReceptionPlacement
         fields = '__all__'  # Include all model fields
@@ -365,21 +384,14 @@ class AssignationEmplacementForm(forms.ModelForm):
         # widget = forms.TextInput(attrs={'type': 'date'})
 
     def get_emplacement_choices(self):
-        # Fetch emplacement from the database using your XpertConnect class
-        emplacements = []
         try:
-            xpert_connect = XpertConnect()
-            xpert_connect.open_session()
             query = Query.objects.get(name='LISTE EMPLACEMENT')
-            results = xpert_connect.run_query(query.query, query.parameters)
-            xpert_connect.close_session()
-            emplacements = [(emplacement, emplacement) for emplacement in results['DESIGNATION']]
-            emplacements.insert(0, ('', ''))
-            return emplacements
-        except Exception as e:
-            # Handle exceptions appropriately
-            emplacements.append(("Error:", e))
-        return emplacements
+            results = XpertConnect().run_query(query.query, query.parameters)
+            emplacements = column_values(results, 'DESIGNATION')
+            return [('', '')] + [(value, value) for value in emplacements if value is not None]
+        except Exception:
+            logger.exception('Unable to load location choices from Xpert')
+            return [('', 'Impossible de charger les emplacements')]
 
     class Meta:
         model = AssignationEmplacement

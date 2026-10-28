@@ -6,6 +6,12 @@
 
 {% block content %}
 <h2>Liste Pointage</h2>
+{% if xpert_audit_unavailable %}
+<div class="app-alert app-alert--warning" role="alert">
+    <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+    <span>Audit Xpert indisponible. Les traces affichées ne permettent pas de vérifier les présences.</span>
+</div>
+{% endif %}
 
 
 <form method="get" action="">

@@ -47,14 +47,14 @@
             </button>
         </div>
 
-        <div class="live-panel" aria-label="État du système">
+        <div class="live-panel" aria-label="Espace de travail">
             <div class="live-panel__head">
-                <span><i class="status-dot"></i> Système opérationnel</span>
+                <span><i class="status-dot"></i> Espace de travail</span>
                 <strong id="sidebar-clock">--:--</strong>
             </div>
             <div class="live-panel__meta">
                 <span>TRT & tâches</span>
-                <span>Temps réel</span>
+                <span>Données de l’application</span>
             </div>
             <div class="live-panel__bar"><span></span></div>
         </div>
@@ -114,10 +114,6 @@
                     <button type="button" class="icon-button" data-theme-toggle title="Changer le thème" aria-label="Changer le thème">
                         <i class="fa fa-moon-o" aria-hidden="true"></i>
                     </button>
-                    <button type="button" class="icon-button notification-button" data-notifications-toggle title="Activité" aria-label="Afficher l'activité">
-                        <i class="fa fa-bell-o" aria-hidden="true"></i>
-                        <span class="notification-dot"></span>
-                    </button>
                     <div class="clock-card" aria-label="Date et heure">
                         <i class="fa fa-clock-o"></i>
                         <div><strong id="topbar-clock">--:--:--</strong><small id="topbar-date">--</small></div>
@@ -127,7 +123,7 @@
             </div>
 
             <div class="activity-rail" aria-label="Informations système">
-                <span class="activity-rail__label"><i class="status-dot"></i> LIVE</span>
+                <span class="activity-rail__label">MODULES</span>
                 <div class="activity-rail__viewport">
                     <div class="activity-rail__track">
                         <span><b>TRT</b> Planification, suivi et clôture</span>
@@ -205,6 +201,7 @@
 
     <!-- New progressive UI behavior. It never renames/removes existing IDs or handlers. -->
     <script src="{% static 'js/ounissi_ui.js' %}"></script>
+    <script src="{% static 'js/task_form_modal.js' %}"></script>
 
     <!-- Every existing page-level script remains in its original block and executes unchanged. -->
     {% block scripts %}{% endblock %}

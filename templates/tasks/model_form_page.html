@@ -1,0 +1,8 @@
+{% extends 'base2.html' %}
+{% block title %}Corriger le formulaire{% endblock %}
+{% block content %}
+  <div class="app-alert app-alert--error" role="alert"><span>Le formulaire n’a pas été enregistré. Corrigez les champs indiqués.</span></div>
+  {% include 'tasks/model_form.html' %}
+  <button type="submit" form="modelForm">Enregistrer</button>
+  <a href="{% url 'home' %}">Retour au TRT actif</a>
+{% endblock %}

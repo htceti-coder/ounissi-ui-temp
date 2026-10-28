@@ -40,8 +40,6 @@ function extractRowData(row) {
 
 // 2. Core function to send data to the Ninja API
 async function postToNinja(payload, rowElements) {
-    console.log("Sending payload to Ninja:", payload);
-
     try {
         const response = await fetch(NINJA_API_URL, {
             method: "POST",
@@ -55,8 +53,6 @@ async function postToNinja(payload, rowElements) {
         const result = await response.json();
 
         if (response.ok) {
-            console.log("Ninja Success:", result.message);
-
             // Visual feedback for successful rows
             rowElements.forEach(row => {
                 row.style.transition = "background-color 0.8s";
@@ -69,20 +65,21 @@ async function postToNinja(payload, rowElements) {
             });
             return true;
         } else {
-            console.error("Ninja Validation Error:", result.detail);
-            alert("Validation Error: Check console for details.");
+            let message = result.detail || "Impossible de valider les pointages.";
+            if (response.status === 401) message = "Votre session a expiré. Reconnectez-vous.";
+            if (message === "CSRF check Failed") message = "La session a expiré. Rechargez la page et réessayez.";
+            alert(message);
             return false;
         }
     } catch (error) {
         console.error("Network or API Error:", error);
-        alert("Server communication failed. Is the Django server running?");
+        alert("Impossible de contacter le service de validation.");
         return false;
     }
 }
 
 // 3. Existing Row Single Line Validation
 async function saveSingleLine(id) {
-    console.log(`Saving single line: ${id}`);
     const row = document.getElementById(`row-${id}`);
     const btn = document.getElementById(`btn-${id}`);
     if (!row || !btn) return;
@@ -99,7 +96,6 @@ async function saveSingleLine(id) {
 
 // 3.1 New Row Single Line Validation
 async function saveNewSingleLine(btnElement, employeeId, dateStr) {
-    console.log(`Creating single line for Employee: ${employeeId}, Date: ${dateStr}`);
     const row = btnElement.closest('tr');
     if (!row) return;
 

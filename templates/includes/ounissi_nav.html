@@ -1,22 +1,18 @@
 
 {% url 'home' as u_home %}
 {% url 'user_schedule_history' as u_history %}
-{% url 'sync_my_data' as u_sync_my_data %}
+{% url 'my_timesheet' as u_my_timesheet %}
+{% url 'request_leave' as u_request_leave %}
+{% url 'manage_leaves' as u_manage_leaves %}
 
 {% url 'actual_schedule_details' as u_actual_schedule %}
 {% url 'schedule_details' as u_schedule_details %}
 {% url 'schedule_details2' as u_schedule_plan %}
 {% url 'task_list' as u_task_list %}
 {% url 'create_task' as u_create_task %}
-{% url 'import_tasks' as u_import_tasks %}
-{% url 'bulk_assign_task' as u_bulk_assign_task %}
 {% url 'employee_list' as u_employee_list %}
 
 {% url 'reception_dashboard_v3' as u_reception_dashboard %}
-{% url 'form_saisie' as u_form_saisie %}
-{% url 'form_reception_produit' as u_form_produit %}
-{% url 'form_reception_vignette' as u_form_vignette %}
-{% url 'form_reception_placement' as u_form_placement %}
 
 {% url 'etat_stocks' as u_etat_stocks %}
 {% url 'emplacements' as u_emplacements %}
@@ -24,18 +20,16 @@
 
 {% url 'attendance_logs' as u_attendance_logs %}
 {% url 'timesheet_list' as u_timesheet_list %}
-{% url 'bulk_update_timesheets' as u_bulk_update_timesheets %}
 {% url 'salary_list' as u_salary_list %}
 {% url 'salary_item_list' as u_salary_item_list %}
-{% url 'add_update_salary' as u_add_update_salary %}
 
 {% url 'create_schedule' as u_create_schedule %}
 {% url 'test_queries' as u_test_queries %}
 {% url 'create_query' as u_create_query %}
 
 {% url 'api-root' as u_api_root %}
-{% url 'openapi-json' as u_openapi_json %}
-{% url 'openapi-view' as u_openapi_view %}
+{% url 'api-1.0.0:openapi-json' as u_openapi_json %}
+{% url 'api-1.0.0:openapi-view' as u_openapi_view %}
 {% url 'swagger-ui' as u_swagger %}
 {% url 'redoc' as u_redoc %}
 {% url 'schema' as u_schema %}
@@ -48,18 +42,19 @@
         <a href="{{ u_home|default:'/' }}" class="nav-link" data-nav-fixed data-nav-match="/">
             <span class="nav-icon"><i class="fa fa-bolt"></i></span>
             <span>TRT actif</span>
-            <span class="nav-live">LIVE</span>
         </a>
         <a href="{{ u_history|default:'/history/schedules' }}" class="nav-link" data-nav-fixed>
             <span class="nav-icon"><i class="fa fa-history"></i></span>
             <span>Mon historique TRT</span>
         </a>
-        {% if u_sync_my_data %}
-        <a href="{{ u_sync_my_data }}" class="nav-link" data-nav-fixed>
-            <span class="nav-icon"><i class="fa fa-refresh"></i></span>
-            <span>Synchroniser mes données</span>
+        <a href="{{ u_my_timesheet }}" class="nav-link" data-nav-fixed>
+            <span class="nav-icon"><i class="fa fa-clock-o"></i></span>
+            <span>Mon pointage</span>
         </a>
-        {% endif %}
+        <a href="{{ u_request_leave }}" class="nav-link" data-nav-fixed>
+            <span class="nav-icon"><i class="fa fa-calendar-o"></i></span>
+            <span>Demander un congé</span>
+        </a>
     </div>
 
     {% if logged_data.leader or logged_data.group.name == "Admin" %}
@@ -86,16 +81,6 @@
             <span class="nav-icon"><i class="fa fa-plus-square-o"></i></span>
             <span>Créer une tâche</span>
         </a>
-        {% if u_bulk_assign_task %}
-        <a href="{{ u_bulk_assign_task }}" class="nav-link" data-nav-fixed>
-            <span class="nav-icon"><i class="fa fa-users"></i></span>
-            <span>Assignation groupée de tâches</span>
-        </a>
-        {% endif %}
-        <a href="{{ u_import_tasks|default:'/import_tasks/' }}" class="nav-link" data-nav-fixed>
-            <span class="nav-icon"><i class="fa fa-upload"></i></span>
-            <span>Importer des tâches</span>
-        </a>
         <a href="{{ u_employee_list|default:'/employees/' }}" class="nav-link" data-nav-fixed>
             <span class="nav-icon"><i class="fa fa-id-card-o"></i></span>
             <span>Liste du personnel</span>
@@ -108,35 +93,14 @@
         {% if u_reception_dashboard %}
         <a href="{{ u_reception_dashboard }}" class="nav-link" data-nav-fixed>
             <span class="nav-icon"><i class="fa fa-dashboard"></i></span>
-            <span>Tableau de bord réception</span>
+            <span>Suivi réception (expérimental)</span>
             <span class="nav-pill">V3</span>
         </a>
         {% endif %}
         <div class="nav-hint">
-            <i class="fa fa-window-restore"></i>
-            Formulaires de création des tâches 2/5 → 5/5. Ils s'ouvrent en <b>fenêtre modale</b>
-            (normalement lancés depuis le TRT actif avec le contexte de la tâche).
+            <i class="fa fa-info-circle"></i>
+            Les formulaires de réception s’ouvrent depuis une tâche du TRT actif.
         </div>
-        <a href="{{ u_form_saisie|default:'/form_saisie' }}" class="nav-link" data-nav-fixed data-nav-popup="Formulaire 2/5 · Saisie facture">
-            <span class="nav-icon"><i class="fa fa-keyboard-o"></i></span>
-            <span>2/5 · Saisie facture</span>
-            <span class="nav-pill nav-pill--popup">POPUP</span>
-        </a>
-        <a href="{{ u_form_produit|default:'/form_reception_produit' }}" class="nav-link" data-nav-fixed data-nav-popup="Formulaire 3/5 · Vérification produit">
-            <span class="nav-icon"><i class="fa fa-medkit"></i></span>
-            <span>3/5 · Vérif. produit</span>
-            <span class="nav-pill nav-pill--popup">POPUP</span>
-        </a>
-        <a href="{{ u_form_vignette|default:'/form_reception_vignette' }}" class="nav-link" data-nav-fixed data-nav-popup="Formulaire 4/5 · Collage vignette">
-            <span class="nav-icon"><i class="fa fa-tags"></i></span>
-            <span>4/5 · Collage vignette</span>
-            <span class="nav-pill nav-pill--popup">POPUP</span>
-        </a>
-        <a href="{{ u_form_placement|default:'/form_reception_placement' }}" class="nav-link" data-nav-fixed data-nav-popup="Formulaire 5/5 · Placement rayon">
-            <span class="nav-icon"><i class="fa fa-archive"></i></span>
-            <span>5/5 · Placement rayon</span>
-            <span class="nav-pill nav-pill--popup">POPUP</span>
-        </a>
     </div>
 
     <!-- ==================== STOCKS & EMPLACEMENTS ==================== -->
@@ -169,12 +133,10 @@
             <span class="nav-icon"><i class="fa fa-clock-o"></i></span>
             <span>Feuilles de pointage</span>
         </a>
-        {% if u_bulk_update_timesheets %}
-        <a href="{{ u_bulk_update_timesheets }}" class="nav-link" data-nav-fixed>
-            <span class="nav-icon"><i class="fa fa-pencil-square-o"></i></span>
-            <span>Mise à jour groupée des pointages</span>
+        <a href="{{ u_manage_leaves }}" class="nav-link" data-nav-fixed>
+            <span class="nav-icon"><i class="fa fa-calendar-check-o"></i></span>
+            <span>Gestion des congés</span>
         </a>
-        {% endif %}
         {% if logged_data.group.name == "Admin" %}
         <a href="{{ u_salary_list|default:'/salaries/' }}" class="nav-link" data-nav-fixed>
             <span class="nav-icon"><i class="fa fa-money"></i></span>
@@ -183,10 +145,6 @@
         <a href="{{ u_salary_item_list|default:'/salary_items/' }}" class="nav-link" data-nav-fixed>
             <span class="nav-icon"><i class="fa fa-list-alt"></i></span>
             <span>Rubriques de paie (G/R)</span>
-        </a>
-        <a href="{{ u_add_update_salary|default:'/salary/add-update-salary/' }}" class="nav-link" data-nav-fixed>
-            <span class="nav-icon"><i class="fa fa-sliders"></i></span>
-            <span>Saisie / affectation paie</span>
         </a>
         {% endif %}
     </div>
@@ -291,6 +249,6 @@
         <div class="nav-endpoint"><span class="nav-endpoint__path">/save_salary_details/</span><span class="nav-pill">POST</span></div>
         <div class="nav-endpoint"><span class="nav-endpoint__path">/submit_form/&lt;form_class_name&gt;/</span><span class="nav-pill">POST</span></div>
         <div class="nav-endpoint"><span class="nav-endpoint__path">/queries/test_query_submission/</span><span class="nav-pill">POST</span></div>
-        <div class="nav-endpoint"><span class="nav-endpoint__path">/stock/assign_stock/delete_assignment/&lt;pk&gt;/</span><span class="nav-pill">POST</span></div>
+        <div class="nav-endpoint"><span class="nav-endpoint__path">/stock/assign_stock/delete_assignment/&lt;pk&gt;/</span><span class="nav-pill">DELETE</span></div>
     </details>
 </nav>

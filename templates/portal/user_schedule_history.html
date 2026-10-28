@@ -34,7 +34,7 @@
               <td>{{ progression }}</td>
               <td>
                 <div class="w3-grey">
-                  <div class="w3-container w3-left w3-green" style="width:{{ schedule_item.progression_rate }}%">{{ schedule_item.progression_rate }}%</div>
+                  <div class="w3-container w3-left w3-green" style="width:clamp(0%, {{ schedule_item.progression_rate|default_if_none:0 }}%, 100%)">{{ schedule_item.progression_rate }}%</div>
                 </div>
               </td>
             </tr>

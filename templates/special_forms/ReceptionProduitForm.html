@@ -1,6 +1,7 @@
 <!-- special_forms/ReceptionProduitForm.html -->
 <h2>Assignation Classer Produits</h2>
 <h3>{{ model_schedule_item.task }}</h3>
+{% include 'special_forms/assignment_context.html' %}
 <form id="popup_produit_form" method="post" action="{% url 'form_reception_produit' %}">
     {% csrf_token %}
     <div>
@@ -17,9 +18,9 @@
             {% endfor %}
         </select>
 
-        <span>Lignes: <input id="start1" name="employee1_range_start" size="3" ></span>
-        <span>A: <input id="end1" name="employee1_range_end" size="3"></span>
-        <span><a>Temps requis:</a><a id="number1">--:--:--</a></span>
+        <span>Lignes: <input id="start1" name="employee1_range_start" type="number" min="1" size="3" oninput="updateRangeDurations({{ items_list }})"></span>
+        <span>A: <input id="end1" name="employee1_range_end" type="number" min="1" size="3" oninput="updateRangeDurations({{ items_list }})"></span>
+        <span><a>Durée affectée :</a><a id="number1">--:--:--</a></span>
 <!--        <input type="hidden" id="item1_time" name="item1_time">-->
 
     </div>
@@ -32,9 +33,9 @@
             {% endfor %}
         </select>
 
-        <span>Lignes: <input id="start2" name="employee2_range_start" size="3"></span>
-        <span>A: <input id="end2" name="employee2_range_end" size="3"></span>
-        <span><a>Temps requis:</a><a id="number2">--:--:--</a></span>
+        <span>Lignes: <input id="start2" name="employee2_range_start" type="number" min="1" size="3" oninput="updateRangeDurations({{ items_list }})"></span>
+        <span>A: <input id="end2" name="employee2_range_end" type="number" min="1" size="3" oninput="updateRangeDurations({{ items_list }})"></span>
+        <span><a>Durée affectée :</a><a id="number2">--:--:--</a></span>
     </div>
     <div>
         <label for="employee3">Employee 3:</label>
@@ -44,33 +45,17 @@
             <option value="{{ employee.employee.id }}">{{ employee.employee }}</option>
             {% endfor %}
         </select>
-        <span>Lignes: <input id="start3" name="employee3_range_start" size="3"></span>
-        <span>A: <input id="end3" name="employee3_range_end" size="3"></span>
-        <span><a>Temps requis:</a><a id="number3">--:--:--</a></span>
+        <span>Lignes: <input id="start3" name="employee3_range_start" type="number" min="1" size="3" oninput="updateRangeDurations({{ items_list }})"></span>
+        <span>A: <input id="end3" name="employee3_range_end" type="number" min="1" size="3" oninput="updateRangeDurations({{ items_list }})"></span>
+        <span><a>Durée affectée :</a><a id="number3">--:--:--</a></span>
     </div>
     <input type="hidden" name="supplier" value="{{ original_task.supplier }}">
     <input type="hidden" name="ref_tiers" value="{{ original_task.ref_tiers }}">
     <input type="hidden" name="origine" value="{{ original_task.id }}">
-    <input type="hidden" name="ref_tiers" value="{{ original_task.ref_tiers }}">
     <input type="hidden" name="employee1_schedule_item" value="{{ model_schedule_item.id }}">
 
-    <button type="submit">Submit</button>
+    <button type="submit">Enregistrer l’affectation</button>
 </form>
 <br>
-<button data-toggle="collapse" data-target="#invoice">Detail Facture</button>
-<table id="invoice" class=" collapse table dataTable no-footer w3-table w3-striped w3-white w3-border" style="width:100%;">
-    <thead>
-      {% for column in invoice.columns %}
-        <th>{{ column }}</th>
-      {% endfor %}
-    </thead>
-    <tbody>
-      {% for row in invoice.values %}
-      <tr>
-      {% for col in row %}
-        <td>{{ col }}</td>
-      {% endfor %}
-      </tr>
-      {% endfor %}
-    </tbody>
-</table>
+<button type="button" data-toggle="collapse" data-target="#invoice" aria-controls="invoice" aria-expanded="false">Détail de la facture</button>
+{% include 'includes/query_results_table.html' with results=invoice table_id='invoice' collapsible=True %}

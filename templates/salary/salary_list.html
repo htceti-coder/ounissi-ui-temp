@@ -65,7 +65,7 @@
       url: `/get_salary_details/${salaryId}/`,  // Replace with your actual URL
       success: function(response) {
         // Load the retrieved salary details into the modal content
-        $('.modal-content').html(response);
+        $('#editSalaryModal .modal-content').html(response);
       },
     });
   });

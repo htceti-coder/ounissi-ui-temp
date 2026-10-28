@@ -1,5 +1,6 @@
 import json
 import calendar
+import logging
 from datetime import datetime, timedelta, time
 from django.apps import apps
 from django.shortcuts import render, get_object_or_404, redirect
@@ -9,8 +10,9 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.utils.module_loading import import_string
-from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
+from django.http import JsonResponse, HttpResponse, HttpResponseRedirect, HttpResponseNotAllowed
 from django.db import IntegrityError, connection
+from django.core.exceptions import PermissionDenied, ValidationError
 import pandas as pd
 
 from .models import *
@@ -18,17 +20,21 @@ from .forms import *
 from accounts.models import Employee, Team
 from .attendance_importer import import_attendance_logs, timesheet_dataframe, save_logs, import_attendance_and_users
 from .xpertcon import XpertConnect
+from .query_results import column_values
 from .salary_calculator import SalaryCalculator
-from .utils import getLoggedData, generate_timesheet_excel
+from .utils import getLoggedData, generate_timesheet_excel, can_manage_timesheets
 from .decorators import with_logged_data
 
 # Import the new service layer
 from . import schedule_service
+logger = logging.getLogger(__name__)
 # additional
 
 
 @login_required
 def timesheet_list(request):
+    if not can_manage_timesheets(request):
+        raise PermissionDenied
     filter_form = TimesheetFilterForm(request.GET)
 
     # 1. Date boundaries
@@ -77,6 +83,7 @@ def timesheet_list(request):
 
     # 2. XpertPharm Audit Fetch
     xpert_logs_map = {}
+    xpert_audit_unavailable = False
     if employees_list:
         query_str = """
                     SELECT CAST(CREATED_ON AS DATE)         AS OP_DATE,
@@ -98,11 +105,17 @@ def timesheet_list(request):
 
         try:
             results = XpertConnect().run_query(query_str, params)
-            for row in results.get('data_rows', []):
-                key = (str(row[1]), str(row[0]))
-                xpert_logs_map[key] = {'first': row[2], 'last': row[3]}
-        except Exception as e:
-            print(f"XpertPharm Log Fetch Failed: {e}")
+            columns = results['columns']
+            date_idx = columns.index('OP_DATE')
+            user_idx = columns.index('OP_USER')
+            first_idx = columns.index('FIRST_LOG')
+            last_idx = columns.index('LAST_LOG')
+            for row in results['data_rows']:
+                key = (str(row[user_idx]), str(row[date_idx]))
+                xpert_logs_map[key] = {'first': row[first_idx], 'last': row[last_idx]}
+        except Exception:
+            logger.warning('Xpert audit logs unavailable', exc_info=True)
+            xpert_audit_unavailable = True
 
     # 3. Data Assembly (Grid: Employees × Dates)
     timesheets_with_hours = []
@@ -188,12 +201,13 @@ def timesheet_list(request):
 
     # 4. Trigger isolated export if requested
     if request.GET.get('export') == 'excel':
-        return generate_timesheet_excel(timesheets_with_hours, start_date, end_date)
+        return generate_timesheet_excel(timesheets_with_hours, start_date, end_date, xpert_audit_unavailable)
 
     # 5. Define the context before returning
     context = {
         'filter_form': filter_form,
         'timesheets_with_hours': timesheets_with_hours,
+        'xpert_audit_unavailable': xpert_audit_unavailable,
         'logged_data': getLoggedData(request) if 'getLoggedData' in globals() else None
     }
 
@@ -499,7 +513,12 @@ def test_query_submission(request):
     if request.method == 'POST':
         query_text = request.POST.get('queryText')
         parameters = get_dynamic_parameter(request)
-        query_type = request.POST.get('type')
+        try:
+            query_type = int(request.POST.get('type', ''))
+            if query_type not in (0, 1):
+                raise ValueError
+        except ValueError:
+            return render(request, 'queries/query_result.html', {'error_message': 'Type de requête invalide.'}, status=400)
         temp_query = Query(
             name='temp',
             type=query_type,
@@ -525,7 +544,9 @@ def get_query_details(request, query_id):
 def execute_query(request):
     if request.method == 'POST':
         conn = None
-        query_id = request.POST.get('query')
+        query_id = request.POST.get('query', '')
+        if not query_id.isdecimal():
+            return render(request, 'queries/query_result.html', {'error_message': 'Sélectionnez une requête.'}, status=400)
         query = get_object_or_404(Query, pk=query_id)
         parameters = query.parameters.copy()
 
@@ -598,7 +619,8 @@ def create_query(request):
                 name=query_name,
                 query=query_text,
                 parameters=parameters,
-                type=query_type
+                type=query_type,
+                help=request.POST.get('help', '')
             )
             return redirect('test_queries')
 
@@ -943,35 +965,37 @@ def add_or_edit_schedule_item(request, item_id=None):
 
 @login_required
 def get_model_form(request):
-    if request.method == 'POST':
-        task_id = request.POST.get('task_id')
-        employee_id = request.POST.get('employee_id')
-        schedule_id = request.POST.get('selected_schedule')
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    task_id = request.POST.get('task_id')
+    employee_id = request.POST.get('employee_id')
+    schedule_id = request.POST.get('selected_schedule')
+    try:
         task = Task.objects.get(pk=task_id)
-
-        try:
-            model_name = task.progress_query.parameters['model_name']
-            model = apps.get_model('ounissi_app', model_name)
-            form_class_name = model.get_form()
-            form_class = import_string(f'ounissi_app.forms.{form_class_name}')
-            form = form_class()
-
-            transfer_data = json.dumps({'task_id': task_id,
-                                        'employee_id': employee_id,
-                                        'schedule_id': schedule_id})
-
-            context = {'form': form,
-                       'form_title': task.task_name,
-                       'form_class_name': form_class_name,
-                       'transfer_data': transfer_data,
-                       'logged_data': getLoggedData(request)}
-            return render(request, 'tasks/model_form.html', context)
-
-        except (Task.DoesNotExist, KeyError, LookupError, Exception) as ex:
-            return JsonResponse({'success': False, 'message': f"Error: {str(ex)}"})
+        progress_query = task.progress_query
+        model_name = (progress_query.parameters or {}).get('model_name') if progress_query else None
+        if not model_name:
+            raise ValueError('Le formulaire de cette tâche n’est pas configuré : renseignez model_name dans la requête de progression.')
+        model = apps.get_model('ounissi_app', model_name)
+        form_class_name = model.get_form()
+        form_class = import_string(f'ounissi_app.forms.{form_class_name}')
+        form = form_class()
+        transfer_data = json.dumps({
+            'task_id': task_id, 'employee_id': employee_id, 'schedule_id': schedule_id,
+        })
+        return render(request, 'tasks/model_form.html', {
+            'form': form, 'form_title': task.task_name, 'form_class_name': form_class_name,
+            'transfer_data': transfer_data, 'logged_data': getLoggedData(request),
+        })
+    except ValueError as exc:
+        return JsonResponse({'success': False, 'message': str(exc)}, status=422)
+    except Exception:
+        logger.exception('Unable to load task form')
+        return JsonResponse({'success': False, 'message': 'Impossible de charger ce formulaire. Vérifiez la configuration de la tâche.'}, status=422)
 
 
 @login_required
+@transaction.atomic
 def generic_form_submission_view(request, form_class_name):
     if request.method == 'POST':
         referer = request.META.get('HTTP_REFERER')
@@ -983,6 +1007,13 @@ def generic_form_submission_view(request, form_class_name):
             model_form.created_by = request.user
             transfer_data = json.loads(request.POST.get('transfer_data'))
             task = Task.objects.get(pk=transfer_data['task_id'])
+            if isinstance(model_form, Reception):
+                employee = Employee.objects.filter(user=request.user).first()
+                model_name = (task.progress_query.parameters or {}).get('model_name') if task.progress_query else None
+                if not employee or str(employee.pk) != str(transfer_data.get('employee_id')):
+                    raise PermissionDenied
+                if model_name != 'Reception' or not task.menu or not employee.rank or employee.rank.value > task.responsibility_level.value:
+                    raise PermissionDenied
 
             schedule_item, assigned_delta = schedule_service.update_schedule_from_item(
                 task_id=task.id,
@@ -993,79 +1024,162 @@ def generic_form_submission_view(request, form_class_name):
                 progression_rate=100
             )
 
-            schedule_service.generate_group_task(schedule_item, schedule_item.schedule)
-            schedule_service.update_employee_task_from_item(schedule_item, assigned_delta)
-
             model_form.related_item = schedule_item
             model_form.save()
-            return redirect(referer)
+            schedule_service.update_employee_task_from_item(schedule_item, assigned_delta)
+            generated = schedule_service.generate_group_task(schedule_item, schedule_item.schedule)
+            if isinstance(model_form, Reception) and not generated:
+                messages.warning(request, 'Réception enregistrée, mais aucune tâche suivante n’est configurée. Vérifiez les règles de génération des tâches.')
+            return redirect(referer or 'home')
         else:
-            messages.error(request, 'Please correct the errors below.')
+            return render(request, 'tasks/model_form_page.html', {
+                'form': form, 'form_title': 'Corriger le formulaire',
+                'form_class_name': form_class_name,
+                'transfer_data': request.POST.get('transfer_data', ''),
+                'logged_data': getLoggedData(request),
+            }, status=400)
 
-    return JsonResponse({'success': False, 'message': 'Invalid request method.'})
+    return HttpResponseNotAllowed(['POST'])
 
 
+def can_manage_reception(request):
+    """Use the same manager roles as the TRT management navigation."""
+    return request.user.groups.filter(name='Admin').exists() or bool(getLoggedData(request)['leader'])
+
+
+def reception_assignment_error(form):
+    """Check the locked pending item against the displayed parent and employees."""
+    if not form.is_valid():
+        return 'Affectation non enregistrée. Vérifiez les champs du formulaire.'
+    item = ScheduleItem.objects.select_for_update().select_related(
+        'schedule', 'task__progress_query', 'task__responsibility_level',
+    ).get(pk=form.cleaned_data['employee1_schedule_item'].pk)
+    if item.employee_id:
+        return 'Cette tâche a déjà été affectée. Actualisez le TRT avant de continuer.'
+    configured_model = (item.task.progress_query.parameters or {}).get('model_name') if item.task.progress_query else None
+    if configured_model != form._meta.model.__name__:
+        return 'La tâche sélectionnée ne correspond pas à ce formulaire.'
+    if item.task.average_duration is None or item.task.average_duration.total_seconds() <= 0:
+        return 'Configurez une durée par ligne positive pour cette tâche.'
+
+    original_item = schedule_service.get_original_item(item)
+    original = form.cleaned_data.get('origine')
+    if not original_item or not original or original not in schedule_service.get_related_item_details(original_item, type(original)):
+        return 'La tâche précédente de cette réception est introuvable ou ne correspond plus à cette affectation.'
+    supplier, reference = form.cleaned_data.get('supplier'), form.cleaned_data.get('ref_tiers')
+    if not supplier or not reference or supplier != original.supplier or reference != original.ref_tiers:
+        return 'Le fournisseur ou la référence ne correspond pas à la réception d’origine.'
+    if schedule_service.reception_identifier(item.task_identifier) != f'{supplier}#{reference}':
+        return 'La référence de cette tâche ne correspond pas à la réception d’origine.'
+    if hasattr(original, 'number_of_lines') and form.cleaned_data.get('number_of_lines') != original.number_of_lines:
+        return 'Le nombre de lignes ne correspond plus à l’étape précédente.'
+
+    employee_ids = {form.cleaned_data[f'employee{i}'].pk for i in (1, 2, 3) if form.cleaned_data.get(f'employee{i}')}
+    eligible_ids = set(ScheduleEmployee.objects.filter(
+        schedule=item.schedule, employee_id__in=employee_ids,
+        employee__rank__value__lte=item.task.responsibility_level.value,
+    ).values_list('employee_id', flat=True))
+    if employee_ids != eligible_ids:
+        return 'Un employé sélectionné n’est pas éligible dans ce TRT.'
+    form.instance.employee1_schedule_item = item
+    # Additional schedule items are created from the validated employees and
+    # ranges, never accepted as arbitrary IDs from a submitted form.
+    form.instance.employee2_schedule_item = None
+    form.instance.employee3_schedule_item = None
+    return None
+
+
+@login_required
 def get_special_form(request):
-    referer = request.META.get('HTTP_REFERER')
-    if request.method == 'POST':
-        item_id = request.POST.get('schedule_item')
-        task_id = request.POST.get('task_id')
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    if not can_manage_reception(request):
+        raise PermissionDenied
 
-        task = Task.objects.get(pk=task_id)
-        schedule_item = ScheduleItem.objects.get(pk=item_id)
-        try:
-            model_name = task.progress_query.parameters['model_name']
-            model = apps.get_model('ounissi_app', model_name)
-            form_class_name = model.get_form()
-            employees = ScheduleEmployee.objects.filter(schedule=schedule_item.schedule,
-                                                        employee__rank__value__lte=task.responsibility_level.value)
+    try:
+        task = Task.objects.get(pk=request.POST.get('task_id'))
+        schedule_item = ScheduleItem.objects.get(pk=request.POST.get('schedule_item'))
+        if schedule_item.task_id != task.id:
+            raise ValueError('La tâche sélectionnée ne correspond pas à cette affectation.')
+        if schedule_item.employee_id:
+            raise ValueError('Cette tâche a déjà été affectée. Actualisez le TRT avant de continuer.')
 
-            form_template = f'special_forms/{form_class_name}.html'
-            original_item = schedule_service.get_original_item(schedule_item)
-            original_model = apps.get_model('ounissi_app', original_item.task.progress_query.parameters['model_name'])
-            original_task = schedule_service.get_related_item_details(original_item, original_model)[0]
-            items_list = []
-            invoice = None
+        progress_query = task.progress_query
+        model_name = (progress_query.parameters or {}).get('model_name') if progress_query else None
+        if not model_name:
+            raise ValueError('Le formulaire de cette tâche n’est pas configuré : renseignez model_name dans la requête de progression.')
+        model = apps.get_model('ounissi_app', model_name)
+        form_class_name = model.get_form()
+        employees = ScheduleEmployee.objects.filter(
+            schedule=schedule_item.schedule,
+            employee__rank__value__lte=task.responsibility_level.value,
+        )
 
-            if form_class_name in ['ReceptionVignetteForm', 'ReceptionProduitForm', 'ReceptionPlacementForm']:
+        original_item = schedule_service.get_original_item(schedule_item)
+        if not original_item:
+            raise ValueError('La tâche précédente de cette réception est introuvable. Vérifiez la règle de génération et la référence.')
+        original_query = original_item.task.progress_query
+        original_model_name = (original_query.parameters or {}).get('model_name') if original_query else None
+        if not original_model_name:
+            raise ValueError('Le modèle de la tâche précédente n’est pas configuré.')
+        original_model = apps.get_model('ounissi_app', original_model_name)
+        original_details = schedule_service.get_related_item_details(original_item, original_model)
+        if not original_details:
+            raise ValueError('Les données de la tâche précédente sont introuvables pour cette réception.')
+        original_task = original_details[0]
+        if schedule_item.task.average_duration is None:
+            raise ValueError('La durée par ligne de cette tâche n’est pas configurée.')
+        seconds_per_line = schedule_item.task.average_duration.total_seconds()
+        items_list = [int(seconds_per_line) if seconds_per_line.is_integer() else seconds_per_line]
+        invoice = None
+        invoice_warning = None
+
+        if form_class_name in ('ReceptionVignetteForm', 'ReceptionProduitForm', 'ReceptionPlacementForm'):
+            # Invoice details are a preview, not a prerequisite for planning.
+            # The previous step records the number of lines used for assignment,
+            # even while Xpert's invoice rows are still being entered.
+            try:
                 query = Query.objects.get(name='InvoiceHelper')
-                parameters = query.parameters.copy()
-                parameters['ref_tiers'] = original_task.ref_tiers
-                parameters['supplier'] = original_task.supplier
-
+                parameters = (query.parameters or {}).copy()
+                parameters.update(ref_tiers=original_task.ref_tiers, supplier=original_task.supplier)
                 invoice = get_query_results(query, parameters)
-                for item in invoice['QUANTITE']:
-                    items_list.append(int(item) * int(original_item.task.average_duration.total_seconds()))
-            else:
-                try:
-                    for i in range(original_task.number_of_lines):
-                        items_list.append(int(original_item.task.average_duration.total_seconds()))
-                except:
-                    items_list.append(int(original_item.task.average_duration.total_seconds()))
+                quantities = column_values(invoice, 'QUANTITE')
+                if not quantities:
+                    invoice_warning = 'Le détail de la facture n’est pas encore disponible dans Xpert. Vous pouvez affecter la tâche avec le nombre de lignes déjà saisi.'
+            except (Query.DoesNotExist, ValueError):
+                invoice = None
+                invoice_warning = 'Le détail de la facture n’a pas pu être chargé depuis Xpert. Vous pouvez affecter la tâche avec le nombre de lignes déjà saisi.'
 
-            context = {
-                'model_schedule_item': schedule_item,
-                'model_employees': employees,
-                'original_task': original_task,
-                'items_list': items_list,
-                'invoice': invoice,
-            }
-            return render(request, form_template, context)
+        return render(request, f'special_forms/{form_class_name}.html', {
+            'model_schedule_item': schedule_item,
+            'model_employees': employees,
+            'original_task': original_task,
+            'items_list': items_list,
+            'invoice': invoice,
+            'invoice_warning': invoice_warning,
+        })
+    except ValueError as exc:
+        return render(request, 'special_forms/form_error.html', {'form_error': str(exc)}, status=422)
+    except Exception:
+        logger.exception('Unable to load reception form')
+        return render(request, 'special_forms/form_error.html', {
+            'form_error': 'Impossible de charger ce formulaire. Vérifiez la tâche et sa configuration.'
+        }, status=422)
 
-        except (Task.DoesNotExist, KeyError, LookupError, Exception) as ex:
-            return JsonResponse({'success': False, 'message': f"Error: {str(ex)}"})
 
-    return redirect(referer)
-
-
+@login_required
+@transaction.atomic
 def special_form_saisie(request):
+    if not can_manage_reception(request):
+        raise PermissionDenied
     referer = request.META.get('HTTP_REFERER')
     if request.method == 'POST':
         form = SaisieForm(request.POST)
-        if form.is_valid():
+        validation_error = reception_assignment_error(form)
+        if not validation_error:
             model_form = form.save(commit=False)
             task_id = model_form.employee1_schedule_item.task.id
-            task_identifier = model_form.employee1_schedule_item.task_identifier
+            task_identifier = schedule_service.reception_identifier(model_form.employee1_schedule_item.task_identifier)
             schedule_id = model_form.employee1_schedule_item.schedule.id
             average_duration = model_form.employee1_schedule_item.task.average_duration
 
@@ -1082,7 +1196,8 @@ def special_form_saisie(request):
                 item_id=model_form.employee1_schedule_item.id
             )
 
-            schedule_service.generate_group_task(schedule_item, schedule_item.schedule)
+            if not schedule_service.generate_group_task(schedule_item, schedule_item.schedule):
+                messages.warning(request, 'Affectation enregistrée, mais aucune tâche suivante n’est configurée. Vérifiez les règles de génération.')
             schedule_service.update_employee_task_from_item(schedule_item, assigned_delta)
 
             if model_form.employee2 and model_form.employee2_range_start and model_form.employee2_range_end:
@@ -1113,17 +1228,25 @@ def special_form_saisie(request):
                     )
                     schedule_service.update_employee_task_from_item(model_form.employee3_schedule_item, assigned_delta)
             form.save()
-        return redirect(referer)
+        else:
+            messages.error(request, validation_error)
+        return redirect(referer or 'actual_schedule_details')
+    return HttpResponseNotAllowed(['POST'])
 
 
+@login_required
+@transaction.atomic
 def special_form_produit(request):
+    if not can_manage_reception(request):
+        raise PermissionDenied
     referer = request.META.get('HTTP_REFERER')
     if request.method == 'POST':
         form = ReceptionProduitForm(request.POST)
-        if form.is_valid():
+        validation_error = reception_assignment_error(form)
+        if not validation_error:
             model_form = form.save(commit=False)
             task_id = model_form.employee1_schedule_item.task.id
-            task_identifier = model_form.employee1_schedule_item.task_identifier
+            task_identifier = schedule_service.reception_identifier(model_form.employee1_schedule_item.task_identifier)
             schedule_id = model_form.employee1_schedule_item.schedule.id
             average_duration = model_form.employee1_schedule_item.task.average_duration
 
@@ -1139,7 +1262,8 @@ def special_form_produit(request):
                 item_id=model_form.employee1_schedule_item.id
             )
 
-            schedule_service.generate_group_task(schedule_item, schedule_item.schedule)
+            if not schedule_service.generate_group_task(schedule_item, schedule_item.schedule):
+                messages.warning(request, 'Affectation enregistrée, mais aucune tâche suivante n’est configurée. Vérifiez les règles de génération.')
             schedule_service.update_employee_task_from_item(schedule_item, assigned_delta)
 
             if model_form.employee2 and model_form.employee2_range_start and model_form.employee2_range_end:
@@ -1170,17 +1294,25 @@ def special_form_produit(request):
                     )
                     schedule_service.update_employee_task_from_item(model_form.employee3_schedule_item, assigned_delta)
             form.save()
-        return redirect(referer)
+        else:
+            messages.error(request, validation_error)
+        return redirect(referer or 'actual_schedule_details')
+    return HttpResponseNotAllowed(['POST'])
 
 
+@login_required
+@transaction.atomic
 def special_form_vignette(request):
+    if not can_manage_reception(request):
+        raise PermissionDenied
     referer = request.META.get('HTTP_REFERER')
     if request.method == 'POST':
         form = ReceptionVignetteForm(request.POST)
-        if form.is_valid():
+        validation_error = reception_assignment_error(form)
+        if not validation_error:
             model_form = form.save(commit=False)
             task_id = model_form.employee1_schedule_item.task.id
-            task_identifier = model_form.employee1_schedule_item.task_identifier
+            task_identifier = schedule_service.reception_identifier(model_form.employee1_schedule_item.task_identifier)
             schedule_id = model_form.employee1_schedule_item.schedule.id
             average_duration = model_form.employee1_schedule_item.task.average_duration
 
@@ -1196,7 +1328,8 @@ def special_form_vignette(request):
                 item_id=model_form.employee1_schedule_item.id
             )
 
-            schedule_service.generate_group_task(schedule_item, schedule_item.schedule)
+            if not schedule_service.generate_group_task(schedule_item, schedule_item.schedule):
+                messages.warning(request, 'Affectation enregistrée, mais aucune tâche suivante n’est configurée. Vérifiez les règles de génération.')
             schedule_service.update_employee_task_from_item(schedule_item, assigned_delta)
 
             if model_form.employee2 and model_form.employee2_range_start and model_form.employee2_range_end:
@@ -1227,17 +1360,25 @@ def special_form_vignette(request):
                     )
                     schedule_service.update_employee_task_from_item(model_form.employee3_schedule_item, assigned_delta)
             form.save()
-        return redirect(referer)
+        else:
+            messages.error(request, validation_error)
+        return redirect(referer or 'actual_schedule_details')
+    return HttpResponseNotAllowed(['POST'])
 
 
+@login_required
+@transaction.atomic
 def special_form_placement(request):
+    if not can_manage_reception(request):
+        raise PermissionDenied
     referer = request.META.get('HTTP_REFERER')
     if request.method == 'POST':
         form = ReceptionPlacementForm(request.POST)
-        if form.is_valid():
+        validation_error = reception_assignment_error(form)
+        if not validation_error:
             model_form = form.save(commit=False)
             task_id = model_form.employee1_schedule_item.task.id
-            task_identifier = model_form.employee1_schedule_item.task_identifier
+            task_identifier = schedule_service.reception_identifier(model_form.employee1_schedule_item.task_identifier)
             schedule_id = model_form.employee1_schedule_item.schedule.id
             average_duration = model_form.employee1_schedule_item.task.average_duration
 
@@ -1284,7 +1425,10 @@ def special_form_placement(request):
                     )
                     schedule_service.update_employee_task_from_item(model_form.employee3_schedule_item, assigned_delta)
             form.save()
-        return redirect(referer)
+        else:
+            messages.error(request, validation_error)
+        return redirect(referer or 'actual_schedule_details')
+    return HttpResponseNotAllowed(['POST'])
 
 
 def get_query_results(query, parameters):
@@ -1321,15 +1465,30 @@ def get_query_results(query, parameters):
         return {'error': str(ex)}
 
 
+@login_required
 def update_schedule_now(request, schedule_id=None):
-    referer = request.META.get('HTTP_REFERER')
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    schedule = get_object_or_404(Schedule, pk=schedule_id)
+    logged_data = getLoggedData(request)
+    can_manage = logged_data['leader'] or request.user.groups.filter(name='Admin').exists()
+    mine_only = request.POST.get('scope') == 'mine' or not can_manage
+    employee = logged_data['employee'] if mine_only else None
+    if mine_only and not employee:
+        messages.error(request, 'Aucun profil d’employé n’est associé à ce compte.')
+        return redirect(request.META.get('HTTP_REFERER') or 'home')
     try:
-        schedule = Schedule.objects.get(pk=schedule_id)
-        if schedule:
-            schedule_service.update_schedule_progress(schedule)
+        result = schedule_service.update_schedule_progress(schedule, employee=employee)
+        if result['failed']:
+            messages.warning(request, f"{result['failed']} tâche(s) n’ont pas pu être actualisées. Vérifiez la connexion et les requêtes Xpert.")
+        elif result['attempted']:
+            messages.success(request, 'Progression des tâches automatiques actualisée.')
+        else:
+            messages.info(request, 'Aucune tâche automatique à actualiser.')
     except Exception:
-        pass
-    return redirect(referer)
+        logger.exception('Unable to refresh schedule progress')
+        messages.error(request, 'Impossible d’actualiser les progressions. Vérifiez la configuration et réessayez.')
+    return redirect(request.META.get('HTTP_REFERER') or 'home')
 
 
 def finalize_schedule(request, schedule_id):
@@ -1478,128 +1637,149 @@ def import_tasks(request):
 
 
 ######### STOCK PART #################
+@login_required
 def get_emplacements(request):
-    query = get_object_or_404(Query, name='STOCK EMPLACEMENTS')
-    emplacements = get_query_results(query, query.parameters)
-    context = {
-        'logged_data': getLoggedData(request),
-        'emplacements': emplacements
-    }
-    return render(request, 'stock/emplacements.html', context)
+    query = Query.objects.filter(name='STOCK EMPLACEMENTS').first()
+    result = get_query_results(query, query.parameters) if query else {'error': 'Requête non configurée'}
+    return render(request, 'stock/emplacements.html', {
+        'logged_data': getLoggedData(request), 'emplacements': result,
+    })
 
 
+@login_required
 def get_stock(request):
-    query = get_object_or_404(Query, name='TEST STOCK')
-    stock = get_query_results(query, query.parameters)
-    context = {
-        'logged_data': getLoggedData(request),
-        'stock': stock
-    }
-    return render(request, 'stock/stocks.html', context)
+    query = Query.objects.filter(name='TEST STOCK').first()
+    result = get_query_results(query, query.parameters) if query else {'error': 'Requête non configurée'}
+    return render(request, 'stock/stocks.html', {
+        'logged_data': getLoggedData(request), 'stock': result,
+    })
 
 
+@login_required
 def assign_stock(request):
-    get_active_assignments()
-
-    employees = Employee.objects.all()
-    operations = StockOperation.objects.all()
-
-    group_size = request.GET.get('group_by', 3)
-    grouped_emplacements = get_emplacemnt_groupped(int(group_size))
-
-    today = date.today()
-    assigned_emplacements = AssignationEmplacement.objects.filter(
-        date_debut__lte=today, date_fin__gte=today
-    )
-
-    assigned_emplacements_dict = {}
-    for assignment in assigned_emplacements:
-        key = assignment.emplacement
-        if key not in assigned_emplacements_dict:
-            assigned_emplacements_dict[key] = []
-        assigned_emplacements_dict[key].append(assignment)
-
-    if request.method == 'GET':
-        group_size = request.GET.get('group_by')
-        if group_size:
-            grouped_emplacements = get_emplacemnt_groupped(int(group_size))
-
-        context = {
-            'logged_data': getLoggedData(request),
-            'grouped_emplacements': grouped_emplacements,
-            'employees': employees,
-            'operations': operations,
-            'assigned_emplacements_dict': assigned_emplacements_dict
-        }
-        return render(request, 'stock/assign_stock.html', context)
-
-    elif request.method == 'POST':
+    if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            response_data = []
+            if not isinstance(data, list) or not data:
+                raise ValueError('Sélectionnez au moins un emplacement à affecter.')
+
+            # Validate the complete batch before making any changes.
+            assignments = []
             for item in data:
+                if not isinstance(item, dict):
+                    raise ValueError('Les données de l’affectation sont invalides.')
                 emplacement = item.get('emplacement')
                 employee_id = item.get('employee')
-                date_debut = item.get('date_debut')
-                date_fin = item.get('date_fin')
-                operations = item.get('operations', [])
-                if emplacement and employee_id and date_debut and date_fin and operations:
+                operations = item.get('operations')
+                if not isinstance(emplacement, str) or not emplacement or len(emplacement) > 10:
+                    raise ValueError('Emplacement invalide.')
+                if not employee_id or not isinstance(operations, list) or not operations:
+                    raise ValueError(f'Renseignez l’employé et les opérations pour {emplacement}.')
+                try:
+                    start = parse_date(item.get('date_debut') or '')
+                    end = parse_date(item.get('date_fin') or '')
                     employee = Employee.objects.filter(pk=employee_id).first()
+                except (TypeError, ValueError):
+                    raise ValueError(f'Employé ou dates invalides pour {emplacement}.')
+                if not employee or not start or not end:
+                    raise ValueError(f'Renseignez l’employé et les dates pour {emplacement}.')
+                if end < start:
+                    raise ValueError(f'La date de fin précède la date de début pour {emplacement}.')
+
+                resolved_operations = []
+                for operation in operations:
+                    # New UI sends numeric IDs; keep supporting older clients that
+                    # send the operation designation instead.
+                    if isinstance(operation, int) and not isinstance(operation, bool):
+                        matched = StockOperation.objects.filter(pk=operation).first()
+                    elif isinstance(operation, str):
+                        matched = StockOperation.objects.filter(designation=operation).first()
+                    else:
+                        matched = None
+                    if not matched:
+                        raise ValueError(f'Opération inconnue pour {emplacement}.')
+                    if matched not in resolved_operations:
+                        resolved_operations.append(matched)
+                assignments.append((emplacement, employee, start, end, resolved_operations))
+
+            with transaction.atomic():
+                for emplacement, employee, start, end, operations in assignments:
                     for operation in operations:
-                        operation = StockOperation.objects.filter(designation=operation).first()
-                        if not operation:
-                            continue
+                        assignment = AssignationEmplacement.objects.filter(
+                            emplacement=emplacement, operation=operation
+                        ).first() or AssignationEmplacement(emplacement=emplacement, operation=operation)
+                        assignment.employee = employee
+                        assignment.date_debut = start
+                        assignment.date_fin = end
+                        assignment.clean()
+                        assignment.save()
+            return JsonResponse({'message': 'Affectations enregistrées.'})
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError, ValidationError) as exc:
+            return JsonResponse({'error': str(exc)}, status=400)
+        except Exception:
+            logger.exception('Unable to save stock assignments')
+            return JsonResponse({'error': 'Impossible d’enregistrer les affectations.'}, status=500)
 
-                        assignation_instance = AssignationEmplacement.objects.filter(
-                            emplacement=emplacement,
-                            operation=operation
-                        ).first()
+    if request.method != 'GET':
+        return HttpResponseNotAllowed(['GET', 'POST'])
 
-                        if assignation_instance:
-                            assignation_instance.employee = employee
-                            assignation_instance.date_debut = date_debut
-                            assignation_instance.date_fin = date_fin
-                        else:
-                            assignation_instance = AssignationEmplacement(
-                                emplacement=emplacement,
-                                employee=employee,
-                                operation=operation,
-                                date_debut=date_debut,
-                                date_fin=date_fin,
-                            )
-                        assignation_instance.clean()
-                        assignation_instance.save()
-                else:
-                    return JsonResponse({'Erreur dans': str(emplacement)}, status=500)
+    try:
+        group_size = int(request.GET.get('group_by', 3))
+        if not 0 <= group_size <= 9:
+            raise ValueError
+    except (TypeError, ValueError):
+        group_size = 3
+        messages.warning(request, 'Le regroupement doit être compris entre 0 et 9 caractères.')
 
-            return JsonResponse({'message': 'Details!', 'data': response_data}, status=200)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+    location_error = None
+    try:
+        grouped_emplacements = get_emplacemnt_groupped(group_size)
+    except (Query.DoesNotExist, ValueError):
+        grouped_emplacements = {}
+        location_error = 'Impossible de charger les emplacements Xpert. Vérifiez la connexion et la requête LISTE EMPLACEMENT.'
+
+    today = timezone.localdate()
+    assigned = AssignationEmplacement.objects.filter(
+        date_debut__lte=today, date_fin__gte=today
+    ).select_related('employee', 'operation')
+    assigned_emplacements_dict = {}
+    for assignment in assigned:
+        assigned_emplacements_dict.setdefault(assignment.emplacement, []).append(assignment)
+
+    return render(request, 'stock/assign_stock.html', {
+        'logged_data': getLoggedData(request),
+        'grouped_emplacements': grouped_emplacements,
+        'employees': Employee.objects.all(),
+        'operations': StockOperation.objects.all(),
+        'assigned_emplacements_dict': assigned_emplacements_dict,
+        'group_size': group_size,
+        'location_error': location_error,
+    })
 
 
+@login_required
 def delete_assignment(request, assignment_id):
-    if request.method == 'DELETE':
-        try:
-            assignment = AssignationEmplacement.objects.get(pk=assignment_id)
-            assignment.delete()
-            return JsonResponse({'success': True, 'message': 'Assignment deleted successfully.'}, status=200)
-        except AssignationEmplacement.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Assignment not found.'}, status=404)
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
-    return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=400)
+    if request.method != 'DELETE':
+        return HttpResponseNotAllowed(['DELETE'])
+    deleted, _ = AssignationEmplacement.objects.filter(pk=assignment_id).delete()
+    if not deleted:
+        return JsonResponse({'success': False, 'error': 'Affectation introuvable.'}, status=404)
+    return JsonResponse({'success': True, 'message': 'Affectation supprimée.'})
 
 
 def get_emplacemnt_groupped(x=3):
-    query = get_object_or_404(Query, name='LISTE EMPLACEMENT')
-    emplacements = get_query_results(query, query.parameters)
-    grouped_emplacements = {}
-    for emplacement in emplacements['data_rows']:
-        prefix = emplacement[0][:x]  # Assuming DESIGNATION is the first item
-        if prefix not in grouped_emplacements:
-            grouped_emplacements[prefix] = []
-        grouped_emplacements[prefix].append(emplacement[0])
-    return grouped_emplacements
+    query = Query.objects.get(name='LISTE EMPLACEMENT')
+    result = get_query_results(query, query.parameters)
+    locations = column_values(result, 'DESIGNATION')
+    grouped = {}
+    # The local assignment model identifies locations by designation only.
+    seen = set()
+    for emplacement in locations:
+        if not isinstance(emplacement, str) or not emplacement or emplacement in seen:
+            continue
+        seen.add(emplacement)
+        grouped.setdefault(emplacement[:x], []).append(emplacement)
+    return grouped
 
 
 def get_active_assignments():
@@ -1721,8 +1901,27 @@ def actual_schedule_details(request, schedule_id=None):
 
     if sched_data:
         context.update(sched_data)
+        context['missing_reception_followups'] = schedule_service.missing_reception_followups(schedule)
 
     return render(request, 'schedule/actual_schedule_details.html', context)
+
+
+@login_required
+@transaction.atomic
+def restore_reception_followup(request, reception_id):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    if not can_manage_reception(request):
+        raise PermissionDenied
+    reception = get_object_or_404(Reception.objects.select_for_update().select_related('related_item__schedule'), pk=reception_id)
+    item = reception.related_item
+    if not item or (item.progression_rate or 0) < 100 or not schedule_service.reception_identifier(item.task_identifier):
+        messages.error(request, 'La réception doit être terminée et comporter une référence avant de créer l’étape suivante.')
+    elif schedule_service.generate_group_task(item, item.schedule):
+        messages.success(request, 'L’étape suivante est disponible pour affectation dans son TRT.')
+    else:
+        messages.error(request, 'Aucune règle de génération n’est configurée pour cette réception.')
+    return redirect('actual_schedule_details')
 
 
 @login_required
@@ -1765,16 +1964,17 @@ def schedule_current(request, schedule_id=None):
                                  pk=schedule_id) if schedule_id else schedule_service.get_current_active_schedule()
     current_schedule = schedule is not None
 
-    sched_data = schedule_service.get_schedule_context_data(schedule, employee=employee)
+    # A user without an employee profile must not see everyone else's tasks.
+    sched_data = schedule_service.get_schedule_context_data(schedule, employee=employee) if employee else None
 
     tasks_demande = []
     tasks_saisie = []
 
-    if employee:
+    if employee and employee.rank_id is not None:
         tasks_demande = Task.objects.filter(task_type__name='DEMANDE',
-                                            responsibility_level__gte=employee.rank).order_by('priority')
+                                            responsibility_level__value__gte=employee.rank.value).order_by('priority')
         tasks_saisie = Task.objects.filter(task_type__name='APRES SAISIE',
-                                           responsibility_level__gte=employee.rank).order_by('priority')
+                                           responsibility_level__value__gte=employee.rank.value).order_by('priority')
 
     context = {
         'current_schedule': current_schedule,
@@ -1844,6 +2044,9 @@ def my_timesheet(request):
         selected_month = today.month
         selected_year = today.year
 
+    if not (1 <= selected_month <= 12 and 1 <= selected_year <= 9999):
+        selected_month, selected_year = today.month, today.year
+
     start_date = date(selected_year, selected_month, 1)
     _, last_day = calendar.monthrange(selected_year, selected_month)
     end_date = date(selected_year, selected_month, last_day)
@@ -1869,7 +2072,7 @@ def my_timesheet(request):
         'years': years,
         'selected_month': selected_month,
         'selected_year': selected_year,
-        'remaining_syncs': 3,
+        'remaining_syncs': max(0, 3 - (UserSyncLog.objects.filter(user=request.user, date=today).values_list('count', flat=True).first() or 0)),
         'logged_data': getLoggedData(request) if 'getLoggedData' in globals() else None
     }
     return render(request, 'portal/my_timesheet.html', context)
@@ -1926,11 +2129,9 @@ def reception_dashboard_v3(request):
     # Fetch all processes and their associated 5 tasks in one go
     processes = ReceptionProcess.objects.all().prefetch_related('tasks', 'tasks__employees').order_by('-reception_date')
 
-    employees = Employee.objects.filter(is_active=True)
-
     context = {
         'processes': processes,
-        'employees': employees,
-        'steps': ReceptionTask.RECEP_STEPS,  # Pass choices for the UI
+        'steps': ReceptionTask.RECEP_STEPS,
+        'logged_data': getLoggedData(request),
     }
     return render(request, 'reception/dashboard_v3.html', context)

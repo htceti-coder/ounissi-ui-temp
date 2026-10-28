@@ -83,6 +83,13 @@ def getLoggedData(request):
     return loggedData
 
 
+def can_manage_timesheets(request):
+    """Match the timesheet management roles exposed in the navigation."""
+    if not request.user.is_authenticated:
+        return False
+    return request.user.groups.filter(name='Admin').exists() or bool(getLoggedData(request)['leader'])
+
+
 # exports.py
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -90,7 +97,7 @@ from openpyxl.utils import get_column_letter
 from django.http import HttpResponse
 
 
-def generate_timesheet_excel(timesheets_with_hours, start_date, end_date):
+def generate_timesheet_excel(timesheets_with_hours, start_date, end_date, xpert_audit_unavailable=False):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Pointages"
@@ -111,6 +118,9 @@ def generate_timesheet_excel(timesheets_with_hours, start_date, end_date):
     ws.cell(row=3, column=1, value=f"Période : {start_date.strftime('%d/%m/%Y')} au {end_date.strftime('%d/%m/%Y')}")
     ws.append([])
     ws.append([])
+    if xpert_audit_unavailable:
+        warning = ws.cell(row=4, column=1, value='Audit Xpert indisponible au moment de l’export.')
+        warning.font = Font(name='Calibri', bold=True, color='B91C1C')
 
     # Table structure headers
     start_row = 6

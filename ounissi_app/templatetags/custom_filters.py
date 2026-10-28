@@ -103,3 +103,9 @@ def short_day_fr(value):
 
     return f"{days[value.weekday()]} {value.strftime('%d/%m')}"
 
+
+
+@register.filter
+def get_task_by_step(tasks, step):
+    """Find a prefetched reception task without issuing a query per cell."""
+    return next((task for task in tasks if task.task_step == step), None)

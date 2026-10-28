@@ -1,87 +1,66 @@
-<!-- test_queries.html -->
 {% extends 'base2.html' %}
-{% load custom_filters %}
-{% load static %}
+{% block title %}Tester les requêtes{% endblock %}
 {% block content %}
-
-<h1>Test Queries</h1>
-
-<form id="queryForm" method="post"> <!--action="{% url 'execute_query' %}">-->
-    {% csrf_token %}
-    <label for="query">Select a Query:</label>
-    <select id="query" name="query">
-        <option value="">Select a Query</option>
-        {% for query in queries %}
-            <option value="{{ query.id }}">{{ query.name }}</option>
-        {% endfor %}
-    </select><br><br>
-
-    <div id="parameters">
-        <!-- Parameter inputs will be added here dynamically -->
-    </div>
-
-    <button type="button" id="submitButton">Run Query</button>
+<h1>Tester les requêtes</h1>
+<form id="queryForm" method="post" action="{% url 'execute_query' %}" data-details-url="{% url 'get_query_details' 0 %}">
+  {% csrf_token %}
+  <label for="query">Requête</label>
+  <select id="query" name="query" required>
+    <option value="">Sélectionner une requête</option>
+    {% for query in queries %}<option value="{{ query.id }}">{{ query.name }}</option>{% endfor %}
+  </select>
+  <div id="parameters"></div>
+  <button type="submit" id="submitButton">Exécuter</button>
 </form>
-<h4 id="queryTitle"></h4>
-<div id="queryResults">
-
-    {% include 'queries/query_result.html' %}
-</div> <!-- Placeholder for displaying query results -->
-
+<h2 id="queryTitle"></h2>
+<div id="queryResults" aria-live="polite"></div>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const querySelect = document.getElementById('query');
-    const parametersDiv = document.getElementById('parameters');
+    const parameters = document.getElementById('parameters');
+    const results = document.getElementById('queryResults');
     const form = document.getElementById('queryForm');
-
-    querySelect.addEventListener('change', function() {
-        const selectedQueryId = querySelect.value;
-        const queryTitle = document.getElementById('queryTitle');
-        queryTitle.innerHTML = "Resultats " + $("#query option:selected").text();
-
-        // Fetch query details including parameters
-        fetch(`/get_query_details/${selectedQueryId}/`)
-        .then(response => response.json())
-        .then(data => {
-
-            // Clear previous parameter inputs
-            parametersDiv.innerHTML = '';
-
-            // Dynamically generate parameter inputs
+    querySelect.addEventListener('change', async function () {
+        const id = querySelect.value;
+        parameters.replaceChildren();
+        results.replaceChildren();
+        document.getElementById('queryTitle').textContent = '';
+        if (!id) return;
+        try {
+            const response = await fetch(form.dataset.detailsUrl.replace(/0\/$/, id + '/'));
+            if (!response.ok) throw new Error('Impossible de charger les paramètres.');
+            const data = await response.json();
+            if (querySelect.value !== id) return;
             data.parameters.forEach(parameter => {
-                const parameterInput = document.createElement('input');
-                parameterInput.type = 'text';
-                parameterInput.name = parameter.name;
-                parameterInput.placeholder = parameter.name;
-                parametersDiv.appendChild(parameterInput);
-
+                const label = document.createElement('label');
+                label.textContent = parameter.name;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.name = parameter.name;
+                input.value = parameter.value == null ? '' : String(parameter.value);
+                label.appendChild(input);
+                parameters.appendChild(label);
             });
-
-        })
-        .catch(error => console.error('Error:', error));
+        } catch (error) {
+            if (querySelect.value === id) parameters.textContent = error.message;
+        }
     });
-
-    // Attach event listener to form submission
-    const testQueryButton = document.getElementById('submitButton');
-        testQueryButton.addEventListener('click', function() {
-        // Clear previous query results
-        document.getElementById('queryResults').innerHTML = 'Loading...';
-        showLoadingContainer()
-        const formData = new FormData(form);
-
-   fetch('/queries/execute_query/', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.text())
-            .then(data => {
-            hideLoadingContainer()
-                document.getElementById('queryResults').innerHTML = data;
-            })
-            .catch(error => console.error('Error:', error));
-        });
+    form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        if (!querySelect.value) return;
+        document.getElementById('queryTitle').textContent = 'Résultats : ' + querySelect.selectedOptions[0].textContent;
+        results.textContent = 'Chargement…';
+        showLoadingContainer();
+        try {
+            const response = await fetch(form.action, { method: 'POST', body: new FormData(form) });
+            if (!response.ok) throw new Error('Impossible d’exécuter la requête.');
+            results.innerHTML = await response.text();
+        } catch (error) {
+            results.textContent = error.message || 'Impossible de contacter le serveur.';
+        } finally {
+            hideLoadingContainer();
+        }
+    });
 });
-
 </script>
-
 {% endblock %}

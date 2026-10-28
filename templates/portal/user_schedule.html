@@ -9,11 +9,18 @@
   <div class="w3-panel">
     <div class="w3-row-padding" style="margin:0 -16px">
       <div>
-        {% if not current_schedule %}
+        {% if not logged_data.employee %}
+        <div class="app-alert app-alert--warning" role="alert"><span>Aucun profil d’employé n’est associé à ce compte.</span></div>
+        {% elif not current_schedule %}
         <h5 style="color:red">Pas de TRT en cours</h5>
         {% else %}
         <h5>TRT en Cours</h5>
         <h4>Taches du {{ selected_schedule.date }}</h4>
+        <form method="post" action="{% url 'update_schedule_now' schedule_id=selected_schedule.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="scope" value="mine">
+          <button type="submit"><i class="fa fa-refresh" aria-hidden="true"></i> Actualiser ma progression</button>
+        </form>
 
         <table class="filtertable w3-table w3-striped w3-white w3-border">
           <thead>
@@ -37,7 +44,7 @@
               <td>{{ progression }}</td>
               <td>
                 <div class="w3-grey">
-                  <div class="w3-container w3-left w3-green" style="width:{{ schedule_item.progression_rate }}">{{ schedule_item.progression_rate }}%</div>
+                  <div class="w3-container w3-left w3-green" style="width:clamp(0%, {{ schedule_item.progression_rate|default_if_none:0 }}%, 100%)">{{ schedule_item.progression_rate }}%</div>
                 </div>
               </td>
             </tr>
@@ -59,12 +66,12 @@
       <tr>
         <td width="90%">{{ task_saisie.task_name }}</td>
         <td>
-          <form id="form_lookup_form" method="post">
+          <form class="form_lookup_form" method="post" action="{% url 'get_model_form' %}">
             {% csrf_token %}
             <input type="hidden" name="task_id" value="{{ task_saisie.id }}">
             <input type="hidden" name="employee_id" value="{{ logged_data.employee.id }}">
             <input type="hidden" name="selected_schedule" value="{{ selected_schedule.id }}">
-            <button type="button" class="form_lookup_button" style="form_lookup_button btn bg-transparent btn-outline-primary"><i class="fa fa-plus"></i></button>
+            <button type="button" class="form_lookup_button btn bg-transparent btn-outline-primary" data-task-form-open aria-label="Ouvrir le formulaire"><i class="fa fa-plus"></i></button>
           </form>
         </td>
       </tr>
@@ -86,7 +93,7 @@
             <input type="hidden" name="schedule" value="{{ selected_schedule.id }}">
             <input type="hidden" name="assigned_time" value="{{ task_demande.average_duration }}">
             <input type="hidden" name="progression_rate" value="100">
-            <button type="submit" style="btn bg-transparent btn-outline-primary"><i class="fa fa-plus"></i></button>
+            <button type="submit" class="btn bg-transparent btn-outline-primary" aria-label="Ajouter la tâche"><i class="fa fa-plus"></i></button>
           </form>
         </td>
       </tr>
@@ -94,55 +101,19 @@
     </table>
   </div>
     <!-- Modal for Form -->
-  <div id="formModal" class="w3-modal">
+  <div id="formModal" class="w3-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="task-form-title">
     <div class="w3-modal-content w3-animate-top w3-card-4">
       <header class="w3-container w3-teal">
-        <span onclick="document.getElementById('formModal').style.display='none'"
-        class="w3-button w3-display-topright">&times;</span>
-        <h2>Task Form</h2>
+        <button type="button" class="w3-button w3-display-topright" data-task-form-close aria-label="Fermer">&times;</button>
+        <h2 id="task-form-title">Formulaire de tâche</h2>
       </header>
       <div id="formContainer" class="w3-container">
-        {% include 'tasks/model_form.html' %}
+        {# The selected task's form is loaded here. #}
       </div>
       <footer class="w3-container w3-teal">
-        <button type="submit" form="modelForm">Submit</button>
+        <button type="submit" form="modelForm" data-task-form-submit hidden>Enregistrer</button>
       </footer>
     </div>
   </div>
 {% endif %}
-{% endblock %}
-{% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  const formButtons = document.querySelectorAll('.form_lookup_button');
-  formButtons.forEach(button => {
-    button.addEventListener('click', submitForm);
-  });
-});
-
-// Submit the form asynchronously
-function submitForm(event) {
-  event.preventDefault(); // Prevent default form submission
-
-  // Serialize form data
-  const formData = new FormData(document.getElementById('form_lookup_form'));
-
-  fetch('/get_model_form', {
-    method: 'POST',
-    body: formData,
-    headers: {
-      'X-Requested-With': 'XMLHttpRequest',
-      'X-CSRFToken': '{{ csrf_token }}'
-    }
-  })
-  .then(response => response.text())
-  .then(data => {
-    // Add the form to the modal
-    document.getElementById('formContainer').innerHTML = data;
-    // Show the modal
-    document.getElementById('formModal').style.display = 'block';
-  })
-  .catch(error => console.error('Error:', error));
-}
-</script>
 {% endblock %}

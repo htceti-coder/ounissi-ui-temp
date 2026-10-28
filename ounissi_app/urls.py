@@ -59,6 +59,7 @@ urlpatterns = [
 
     # Special Forms
     path('get_special_form', views.get_special_form, name='get_special_form'),
+    path('reception/<int:reception_id>/restore-followup/', views.restore_reception_followup, name='restore_reception_followup'),
     path('form_saisie', views.special_form_saisie, name='form_saisie'),
     path('form_reception_produit', views.special_form_produit, name='form_reception_produit'),
     path('form_reception_vignette', views.special_form_vignette, name='form_reception_vignette'),
@@ -84,6 +85,6 @@ urlpatterns = [
     path('stock/', views.get_stock, name='etat_stocks'),
     path('stock/emplacements/', views.get_emplacements, name='emplacements'),
     path('stock/assign_stock/', views.assign_stock, name='assign_stock'),
-    path('stock/assign_stock/delete_assignment/<int:assignment_Id>/', views.delete_assignment, name='delete_assignment'),
+    path('stock/assign_stock/delete_assignment/<int:assignment_id>/', views.delete_assignment, name='delete_assignment'),
 
 ]
