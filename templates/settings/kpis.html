@@ -1,0 +1,43 @@
+{% extends 'base2.html' %}
+{% block title %}Configuration des indicateurs{% endblock %}
+{% block content %}
+<header class="settings-page-header">
+  <div>
+    <p class="settings-eyebrow">Administration</p>
+    <h1>Configuration des indicateurs</h1>
+    <p>Pour chaque rôle, choisissez les indicateurs, leur emplacement, leur présentation et leur ordre. Un nombre plus petit apparaît en premier.</p>
+  </div>
+</header>
+<div class="app-alert app-alert--info" role="note">
+  <i class="fa fa-info-circle" aria-hidden="true"></i>
+  <span>Les cartes relisent les données enregistrées, sans lancer de requête Xpert ni importer le pointage. La visibilité ne donne pas accès aux données d’une autre équipe. Les administrateurs ne voient les indicateurs d’équipe que s’ils dirigent une équipe.</span>
+</div>
+<form method="post" class="kpi-settings-form">
+  {% csrf_token %}
+  {% for group in kpi_settings_groups %}
+  <section class="kpi-settings-group" aria-labelledby="kpi-settings-{{ group.role }}">
+    <h2 id="kpi-settings-{{ group.role }}">{{ group.label }}</h2>
+    <div class="kpi-settings-scroll" role="region" tabindex="0" aria-label="Indicateurs : {{ group.label }}">
+      <table class="kpi-settings-table" data-no-shell>
+        <thead><tr><th scope="col">Indicateur</th><th scope="col">Accueil</th><th scope="col">Page KPI</th><th scope="col">Présentation</th><th scope="col">Ordre</th></tr></thead>
+        <tbody>
+          {% for row in group.rows %}
+          <tr>
+            <th scope="row"><strong>{{ row.definition.label }}</strong><small>{{ row.definition.description }}</small><input type="hidden" name="row_{{ row.prefix }}" value="1"></th>
+            <td><input type="checkbox" name="live_{{ row.prefix }}" value="1" aria-label="{{ row.definition.label }}, {{ group.label }} : accueil" {% if row.show_live %}checked{% endif %}></td>
+            <td><input type="checkbox" name="dashboard_{{ row.prefix }}" value="1" aria-label="{{ row.definition.label }}, {{ group.label }} : page KPI" {% if row.show_dashboard %}checked{% endif %}></td>
+            <td><select name="presentation_{{ row.prefix }}" aria-label="Présentation de {{ row.definition.label }}, {{ group.label }}">{% for value, label in row.choices %}<option value="{{ value }}" {% if row.presentation == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+            <td><input class="kpi-order-input" type="number" name="position_{{ row.prefix }}" min="0" max="999" value="{{ row.position }}" aria-label="Ordre de {{ row.definition.label }}, {{ group.label }}" required></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endfor %}
+  <div class="navigation-settings-actions">
+    <button type="submit" name="action" value="save" class="btn btn-primary">Enregistrer les indicateurs</button>
+    <button type="submit" name="action" value="reset" class="btn btn-outline-secondary" formnovalidate>Restaurer les valeurs par défaut</button>
+  </div>
+</form>
+{% endblock %}

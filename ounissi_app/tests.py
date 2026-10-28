@@ -250,7 +250,8 @@ class UIWorkflowTests(TestCase):
         ScheduleItem.objects.create(employee=self.employee, schedule=self.schedule, task=task, assigned_time=timedelta(minutes=5), progression_rate=75)
         with patch('ounissi_app.schedule_service.get_current_active_schedule', return_value=self.schedule):
             response = self.client.get(reverse('home'))
-        self.assertContains(response, 'width:clamp(0%, 75%, 100%)')
+        self.assertContains(response, 'data-live-task-bar value="75.0"')
+        self.assertContains(response, 'data-live-task-rate>75 %')
         self.assertContains(response, 'class="form_lookup_form"', count=2)
         self.assertContains(response, 'data-task-form-open', count=2)
         self.assertContains(response, 'js/task_form_modal.js')

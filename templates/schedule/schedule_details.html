@@ -109,7 +109,7 @@
         <th>Employee</th>
         <th>Temps de Travail</th>
         <th>Temps Assigne</th>
-        <th>Score</th>
+        <th>Score (points)</th>
       </tr>
     </thead>
     <tbody>
@@ -119,7 +119,7 @@
         <td>{{ employee.employee.first_name }}</td>
         <td>{{ employee.working_hours }}</td>
         <td>{{ employee.total_assigned_time }}</td>
-        <td>{{ employee.score}}</td>
+        <td>{{ employee.calculated_score }}{% if employee.calculated_score_note %}<span class="sr-only"> — {{ employee.calculated_score_note }}</span>{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>

@@ -144,6 +144,7 @@ body.ounissi-app {
 .auth-card .form-group { margin-bottom: 18px; }
 .auth-card .btn { width: 100%; }
 .settings-eyebrow { margin: 0 0 6px; color: var(--ui-emerald-strong); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+html[data-theme="dark"] .settings-eyebrow { color: #94dfc9; }
 .settings-page-header { margin: 0 0 20px; }
 .settings-page-header h1 { margin: 0 0 6px; }
 .settings-page-header p:last-child { max-width: 72ch; margin: 0; color: var(--ui-muted); }
@@ -227,3 +228,67 @@ html[data-theme="dark"] .ounissi-app table.w3-table-all tbody tr:nth-child(even)
 html[data-theme="dark"] .ounissi-app .w3-pale-red { color: var(--ui-text) !important; background-color: #4a2630 !important; }
 html[data-theme="dark"] .ounissi-app .w3-pale-yellow { color: var(--ui-text) !important; background-color: #4a3b20 !important; }
 html[data-theme="dark"] .ounissi-app .w3-pale-green { color: var(--ui-text) !important; background-color: #183d35 !important; }
+
+/* Role-configurable KPI cards and read-only live snapshots. */
+[data-kpi-panel][hidden], [data-kpi-error][hidden], [data-live-assignment-change][hidden] { display: none !important; }
+.kpi-panel { margin: 0 0 24px; }
+.kpi-panel__header, .kpi-page-header { display: flex; justify-content: space-between; align-items: end; flex-wrap: wrap; gap: 12px; }
+.kpi-panel__header { margin-bottom: 14px; }
+.ounissi-app .kpi-panel__header h2 { margin: 0; font-size: 19px; }
+.kpi-panel__header .settings-eyebrow { margin: 0 0 3px; }
+.kpi-panel__link { color: var(--ui-emerald-strong); font-weight: 650; font-size: 13px; }
+html[data-theme="dark"] .kpi-panel__link { color: #83ddc3; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 235px), 1fr)); gap: 12px; align-items: stretch; }
+.kpi-card { min-width: 0; padding: 17px; border: 1px solid var(--ui-border); border-radius: 10px; background: var(--ui-surface); box-shadow: var(--ui-shadow-sm); }
+.kpi-card--details { grid-column: span 2; }
+.kpi-card__heading { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+.ounissi-app .kpi-card__heading h3 { margin: 0; color: var(--ui-muted); font-size: 13px; font-weight: 650; line-height: 1.35; }
+.kpi-card__icon { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 auto; border-radius: 8px; color: var(--ui-emerald-strong); background: #e8f6f1; }
+html[data-theme="dark"] .kpi-card__icon { color: #94dfc9; background: #1b493e; }
+.kpi-card__value { margin: 12px 0 5px; line-height: 1.2; overflow-wrap: anywhere; }
+.kpi-card__value strong { color: var(--ui-text); font-size: clamp(23px, 2.2vw, 30px); font-weight: 700; }
+.kpi-card__value span { color: var(--ui-muted); font-size: 13px; font-weight: 600; }
+.kpi-card__detail, .kpi-card__warning, .kpi-freshness, .kpi-page-note, .kpi-empty { margin: 7px 0 0; color: var(--ui-muted); font-size: 12px; line-height: 1.45; }
+.kpi-card__warning, .kpi-refresh-error { color: #8c5610; }
+html[data-theme="dark"] :is(.kpi-card__warning, .kpi-refresh-error) { color: #f0c983; }
+.kpi-refresh-error { margin: 6px 0 0; font-size: 13px; }
+.kpi-freshness { margin-top: 10px; }
+.kpi-progress, .kpi-task-progress progress { width: 100%; height: 8px; border: 0; border-radius: 99px; overflow: hidden; accent-color: var(--ui-emerald); }
+.kpi-progress::-webkit-progress-bar, .kpi-task-progress progress::-webkit-progress-bar { background: var(--ui-border); border-radius: 99px; }
+.kpi-progress::-webkit-progress-value, .kpi-task-progress progress::-webkit-progress-value { background: var(--ui-emerald); border-radius: 99px; }
+.kpi-progress::-moz-progress-bar, .kpi-task-progress progress::-moz-progress-bar { background: var(--ui-emerald); border-radius: 99px; }
+.kpi-task-progress { display: flex; align-items: center; gap: 10px; min-width: 100px; }
+.kpi-task-progress progress { min-width: 45px; margin: 0; }
+.kpi-task-progress span { min-width: 42px; color: var(--ui-text); font-size: 12px; white-space: nowrap; }
+.kpi-records { list-style: none; max-height: 320px; overflow-y: auto; margin: 14px 0 0; padding: 0; border-top: 1px solid var(--ui-border); }
+.kpi-records li { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px 10px; padding: 9px 0; border-bottom: 1px solid var(--ui-border); }
+.kpi-records li:last-child { border: 0; }
+.kpi-records li div { min-width: 0; }
+.kpi-records li strong, .kpi-records li small { display: block; overflow-wrap: anywhere; }
+.kpi-records li strong { color: var(--ui-text); font-size: 13px; }
+.kpi-records li small { color: var(--ui-muted); font-size: 12px; }
+.kpi-records__status { padding: 3px 8px; border-radius: 99px; color: var(--ui-muted); background: var(--ui-surface-soft); font-size: 11px; font-weight: 650; }
+.kpi-records__status--open { color: #076753; background: #e2f5ed; }
+html[data-theme="dark"] .kpi-records__status--open { color: #a5e7d1; background: #245246; }
+.kpi-month-filter { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.kpi-month-filter label { margin: 0 2px 9px 0; }
+.kpi-month-filter input { width: auto; }
+.kpi-page-note { margin: 10px 0 20px; }
+.kpi-settings-group { margin: 24px 0; }
+.ounissi-app .kpi-settings-group h2 { margin: 0 0 10px; font-size: 18px; }
+.kpi-settings-scroll { max-width: 100%; overflow-x: auto; border: 1px solid var(--ui-border); border-radius: 8px; background: var(--ui-surface); }
+.kpi-settings-scroll:focus-visible { outline: 3px solid rgba(8,126,104,.4); outline-offset: 2px; }
+.ounissi-app .kpi-settings-table { width: 100%; min-width: 750px; border-collapse: collapse; }
+.ounissi-app .kpi-settings-table :is(th, td) { padding: 10px 12px; border-bottom: 1px solid var(--ui-border); vertical-align: middle; }
+.kpi-settings-table tbody tr:last-child :is(th, td) { border-bottom: 0; }
+.kpi-settings-table tbody th { width: 42%; text-align: left; }
+.kpi-settings-table tbody th strong, .kpi-settings-table tbody th small { display: block; }
+.kpi-settings-table tbody th small { margin-top: 3px; color: var(--ui-muted); font-size: 12px; font-weight: 400; }
+.kpi-settings-table td:nth-child(2), .kpi-settings-table td:nth-child(3) { text-align: center; }
+.kpi-settings-table select { min-width: 180px; }
+.kpi-settings-table .kpi-order-input { width: 74px; }
+@media (max-width: 650px) {
+    .kpi-card--details { grid-column: 1 / -1; }
+    .kpi-panel__header, .kpi-page-header { align-items: start; }
+    .kpi-month-filter label { flex-basis: 100%; margin-bottom: 0; }
+}

@@ -43,6 +43,7 @@ SECTIONS = (
 
 ITEMS = (
     NavigationItem('home', 'personal', 'TRT actif', 'home', 'fa-home', ALL),
+    NavigationItem('indicators', 'personal', 'Mes indicateurs', 'kpi_dashboard', 'fa-bar-chart', ALL),
     NavigationItem('history', 'personal', 'Mon historique TRT', 'user_schedule_history', 'fa-history', ALL),
     NavigationItem('my_timesheet', 'personal', 'Mon pointage', 'my_timesheet', 'fa-clock-o', ALL),
     NavigationItem('request_leave', 'personal', 'Demander un congé', 'request_leave', 'fa-calendar-o', ALL),

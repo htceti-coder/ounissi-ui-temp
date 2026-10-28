@@ -37,7 +37,7 @@ class NavigationConfigurationTests(TestCase):
         self.assertEqual(role_for(self.leader), LEADER)
         self.assertEqual(role_for(self.admin), ADMIN)
         self.assertEqual(role_for(self.superuser), ADMIN)
-        self.assertEqual(self.keys(self.worker), {'home', 'history', 'my_timesheet', 'request_leave'})
+        self.assertEqual(self.keys(self.worker), {'home', 'indicators', 'history', 'my_timesheet', 'request_leave'})
         self.assertIn('manage_trt', self.keys(self.leader))
         self.assertNotIn('salaries', self.keys(self.leader))
         self.assertIn('salaries', self.keys(self.admin))

@@ -26,7 +26,7 @@ from .utils import getLoggedData, generate_timesheet_excel, can_manage_timesheet
 from .decorators import with_logged_data
 
 # Import the new service layer
-from . import schedule_service
+from . import schedule_service, kpi_service
 logger = logging.getLogger(__name__)
 # additional
 
@@ -1905,6 +1905,7 @@ def actual_schedule_details(request, schedule_id=None):
     }
 
     if sched_data:
+        sched_data['schedule_employees'] = kpi_service.annotate_schedule_employee_scores(schedule, sched_data['schedule_employees'], request.user)
         context.update(sched_data)
         context['missing_reception_followups'] = schedule_service.missing_reception_followups(schedule)
 
@@ -2022,6 +2023,7 @@ def schedule_details(request, schedule_id=None):
     }
 
     if sched_data:
+        sched_data['schedule_employees'] = kpi_service.annotate_schedule_employee_scores(schedule, sched_data['schedule_employees'], request.user)
         context.update(sched_data)
 
     return render(request, 'schedule/schedule_details.html', context)
@@ -2053,7 +2055,8 @@ def schedule_current(request, schedule_id=None):
         'selected_schedule': schedule,
         'tasks_demande': tasks_demande,
         'tasks_saisie': tasks_saisie,
-        'logged_data': logged_data
+        'logged_data': logged_data,
+        'kpi_snapshot': kpi_service.snapshot(request.user, 'live', schedule_override=schedule),
     }
 
     if sched_data:

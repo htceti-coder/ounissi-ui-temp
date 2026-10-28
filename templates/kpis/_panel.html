@@ -1,0 +1,14 @@
+<div data-kpi-root data-kpi-url="{% url 'kpi_snapshot' %}" data-kpi-surface="{{ kpi_snapshot.surface }}" data-kpi-month="{{ kpi_snapshot.month }}" data-kpi-interval="{{ kpi_snapshot.poll_seconds }}" data-kpi-schedule="{{ kpi_snapshot.schedule_id|default_if_none:'' }}">
+  <section class="kpi-panel" aria-labelledby="kpi-panel-title" data-kpi-panel{% if kpi_snapshot.surface == 'live' and not kpi_snapshot.cards %} hidden{% endif %}>
+    <header class="kpi-panel__header">
+      <div>
+        <p class="settings-eyebrow">Données enregistrées</p>
+        <h2 id="kpi-panel-title">{% if kpi_snapshot.surface == 'live' %}Aperçu des indicateurs{% else %}Indicateurs disponibles{% endif %}</h2>
+      </div>
+      {% if kpi_snapshot.surface == 'live' %}<a class="kpi-panel__link" href="{% url 'kpi_dashboard' %}">Voir tous mes indicateurs <i class="fa fa-angle-right" aria-hidden="true"></i></a>{% endif %}
+    </header>
+    <div data-kpi-cards>{% include 'kpis/_cards.html' %}</div>
+    <p class="kpi-freshness">Lecture des données enregistrées : <time data-kpi-read>{{ kpi_snapshot.read_at }}</time>. Actualisation toutes les {{ kpi_snapshot.poll_seconds }} s si la page est ouverte. Xpert et le terminal sont synchronisés séparément ; leur dernière synchronisation n’est pas connue ici.</p>
+    <p class="kpi-refresh-error" data-kpi-error role="status" hidden>Actualisation indisponible. Les dernières données restent affichées ; nouvel essai automatique.</p>
+  </section>
+</div>

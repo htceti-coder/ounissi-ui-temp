@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic.base import TemplateView
-from . import views, navigation_views
+from . import views, navigation_views, kpi_views
 import accounts.views
 from .api import ninja_api
 urlpatterns = [
@@ -82,6 +82,9 @@ urlpatterns = [
     path('request-leave/', views.request_leave, name='request_leave'),
     path('manage-leaves/', views.manage_leaves, name='manage_leaves'),
     path('settings/navigation/', navigation_views.configure_navigation, name='configure_navigation'),
+    path('settings/indicators/', kpi_views.configure_kpis, name='configure_kpis'),
+    path('indicators/', kpi_views.kpi_dashboard, name='kpi_dashboard'),
+    path('indicators/snapshot/', kpi_views.kpi_snapshot, name='kpi_snapshot'),
 
     #Stock URLs
     path('stock/', views.get_stock, name='etat_stocks'),
