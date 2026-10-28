@@ -1042,9 +1042,13 @@ def generic_form_submission_view(request, form_class_name):
     return HttpResponseNotAllowed(['POST'])
 
 
-def can_manage_reception(request):
-    """Use the same manager roles as the TRT management navigation."""
+def can_manage_trt(request):
+    """Use the manager roles already exposed in the TRT navigation."""
     return request.user.groups.filter(name='Admin').exists() or bool(getLoggedData(request)['leader'])
+
+
+def can_manage_reception(request):
+    return can_manage_trt(request)
 
 
 def reception_assignment_error(form):
@@ -1896,7 +1900,8 @@ def actual_schedule_details(request, schedule_id=None):
         'employees': Employee.objects.all(),
         'tasks': Task.objects.all(),
         'transfer_items': ScheduleItem.objects.filter(schedule__schedule_name='Transfer_Schedule'),
-        'logged_data': getLoggedData(request)
+        'logged_data': getLoggedData(request),
+        'can_manage_trt': can_manage_trt(request),
     }
 
     if sched_data:
@@ -1924,6 +1929,72 @@ def restore_reception_followup(request, reception_id):
     return redirect('actual_schedule_details')
 
 
+def parse_manual_progress_updates(post):
+    """Accept the enhanced multi-page payload or the normal HTML form."""
+    payload = post.get('updates')
+    if payload is not None:
+        try:
+            entries = json.loads(payload)
+        except (TypeError, ValueError):
+            raise ValidationError('La sélection est invalide. Actualisez la page et réessayez.')
+        if not isinstance(entries, list):
+            raise ValidationError('La sélection est invalide. Actualisez la page et réessayez.')
+    else:
+        single_item = post.get('single_item')
+        ids = [single_item] if single_item else post.getlist('selected_item')
+        entries = [{'id': item_id, 'rate': post.get(f'rate_{item_id}')} for item_id in ids]
+
+    if not entries:
+        raise ValidationError('Sélectionnez au moins une tâche manuelle à valider.')
+    # Leave headroom below SQLite's 999 bound-parameter limit.
+    if len(entries) > 900:
+        raise ValidationError('Validez au maximum 900 tâches à la fois.')
+
+    updates, seen = [], set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise ValidationError('La sélection est invalide. Actualisez la page et réessayez.')
+        item_id, rate = entry.get('id'), entry.get('rate')
+        # Booleans are Python integers, but are not valid IDs or percentages.
+        if isinstance(item_id, bool) or isinstance(rate, bool):
+            raise ValidationError('La sélection est invalide. Actualisez la page et réessayez.')
+        item_text, rate_text = str(item_id), str(rate)
+        if not item_text.isascii() or not item_text.isdecimal() or len(item_text) > 19:
+            raise ValidationError('La sélection est invalide. Actualisez la page et réessayez.')
+        if not rate_text.isascii() or not rate_text.isdecimal() or len(rate_text) > 3:
+            raise ValidationError('Indiquez un pourcentage entier entre 0 et 100 pour chaque tâche sélectionnée.')
+        item_id, rate = int(item_text), int(rate_text)
+        if not 0 < item_id <= 9223372036854775807 or item_id in seen:
+            raise ValidationError('La sélection est invalide. Actualisez la page et réessayez.')
+        if not 0 <= rate <= 100:
+            raise ValidationError('Indiquez un pourcentage entier entre 0 et 100 pour chaque tâche sélectionnée.')
+        seen.add(item_id)
+        updates.append((item_id, rate))
+    return updates
+
+
+@login_required
+def bulk_manual_progress(request, schedule_id):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    if not can_manage_trt(request):
+        raise PermissionDenied
+    schedule = get_object_or_404(Schedule, pk=schedule_id, is_template=False)
+    destination = (redirect('actual_schedule_details') if request.POST.get('source') == 'actual'
+                   else redirect('schedule_details_selected', schedule_id=schedule.pk))
+    try:
+        updates = parse_manual_progress_updates(request.POST)
+        count = schedule_service.update_manual_progress(schedule, updates)
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0])
+    except Exception:
+        logger.exception('Unable to validate manual progress for TRT %s', schedule.pk)
+        messages.error(request, 'Impossible de valider les tâches. Aucune modification n’a été enregistrée.')
+    else:
+        messages.success(request, f'{count} tâche(s) manuelle(s) validée(s).')
+    return destination
+
+
 @login_required
 def schedule_details(request, schedule_id=None):
     schedule_service.update_all_schedule_statuses()
@@ -1946,7 +2017,8 @@ def schedule_details(request, schedule_id=None):
         'schedules': schedules,
         'selected_schedule': schedule,
         'schedule_filter_form': schedule_filter_form,
-        'logged_data': getLoggedData(request)
+        'logged_data': getLoggedData(request),
+        'can_manage_trt': can_manage_trt(request),
     }
 
     if sched_data:

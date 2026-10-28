@@ -881,3 +881,29 @@ html[data-theme="dark"] .ounissi-app .progress-value-label { color: var(--ui-mut
 }
 /* A form action must stay hidden while its modal is loading or showing an error. */
 .ounissi-app [data-task-form-submit][hidden] { display: none !important; }
+
+/* Manager selection and progress entry for manual TRT tasks. */
+.bulk-manual-panel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 24px;
+    margin: 10px 0 16px;
+    padding: 16px 18px;
+    border: 1px solid var(--ui-border);
+    border-radius: 14px;
+    background: var(--ui-surface-soft);
+}
+.bulk-manual-panel__intro { flex: 1 1 300px; }
+.bulk-manual-panel__intro strong { color: var(--ui-text); font-size: 13px; }
+.bulk-manual-panel__intro p { margin: 3px 0 0; color: var(--ui-muted); font-size: 11px; }
+.bulk-manual-panel form { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.bulk-manual-count { color: var(--ui-muted); font-size: 11px; font-weight: 700; }
+.bulk-manual-error { flex: 1 0 100%; margin: 0; color: #be123c; font-weight: 700; }
+.bulk-manual-bottom { margin: 10px 0 18px; }
+.ounissi-app input.manual-progress-rate { width: 82px; min-width: 70px; }
+.ounissi-app input.manual-progress-rate[aria-invalid="true"] { border-color: #e11d48; }
+.ounissi-app [data-manual-bulk-submit][hidden], .bulk-manual-error[hidden] { display: none !important; }
+.ounissi-app [data-manual-bulk-submit]:disabled { cursor: not-allowed; opacity: .5; transform: none; }
+.bulk-page-select { display: inline-flex; align-items: center; gap: 5px; margin: 0; white-space: nowrap; }
+.bulk-page-select[hidden] { display: none; }

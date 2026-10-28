@@ -35,6 +35,7 @@ urlpatterns = [
     path('update_schedule_now/<int:schedule_id>', views.update_schedule_now, name='update_schedule_now'),
     path('schedule/<int:schedule_id>/', views.schedule_details, name='schedule_details_selected'),
     path('schedule/scheduleItem_update/<int:pk>', views.scheduleItem_update, name='scheduleItem_update'),
+    path('schedule/<int:schedule_id>/manual-progress/', views.bulk_manual_progress, name='bulk_manual_progress'),
     path('schedule/create_schedule/', views.create_schedule, name='create_schedule'),
     path('finalize_schedule/<int:schedule_id>/', views.finalize_schedule, name='finalize_schedule'),
     path('unfinished_tasks/<int:schedule_id>/', views.handle_unfinished_tasks, name='unfinished_tasks'),

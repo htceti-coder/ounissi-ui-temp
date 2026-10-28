@@ -156,13 +156,15 @@
     {% if not non_assigned_items %}<p>Aucune tâche de réception à affecter pour le moment.</p>{% endif %}
 <h1>Taches En Cours</h1>
 <h2>Manuelles</h2>
-<table class="filtertable">
+{% if can_manage_trt %}{% include 'schedule/bulk_manual_toolbar.html' with source='actual' %}{% endif %}
+<table class="filtertable" data-manual-table>
     <thead>
         <tr>
-            <th>Employee</th>
-            <th>Tache</th>
-            <th>Priorite</th>
-            <th>Temps Assigne</th>
+            {% if can_manage_trt %}<th data-orderable="false"><label class="bulk-page-select" data-manual-page-control hidden><input type="checkbox" data-manual-page-select aria-label="Sélectionner les tâches visibles sur cette page"> Page</label></th>{% endif %}
+            <th>Employé</th>
+            <th>Tâche</th>
+            <th>Priorité</th>
+            <th>Temps assigné</th>
             <th>Objectif</th>
             <th>Progression</th>
             <th>Actions</th>
@@ -170,44 +172,13 @@
     </thead>
     <tbody>
         {% for schedule_item in schedule_items %}
-        {% if schedule_item.employee != None and schedule_item.progression_rate < 100 %}
-        {% if  schedule_item.task.progress_query.query == 'N/A' or not schedule_item.task.progress_query %}
-
-        <tr>
-            <td>{{ schedule_item.employee }}</td>
-                {% if schedule_item.task_identifier != Null%}
-                  <td>{{ schedule_item.task }}:{{schedule_item.task_identifier}}</td>
-                {% else %}
-                  <td>{{ schedule_item.task }}</td>
-                {% endif %}
-                    <td>{{ schedule_item.task.priority }} </td>
-                    <td>{{ schedule_item.assigned_time }}</td>
-                {% with result=schedule_item.assigned_time|division:schedule_item.task.average_duration %}
-                    <td>{{ result }}</td>
-                {% endwith %}
-
-                    <td>
-                        <!-- Form for modifying assigned_time -->
-                        <form method="post" action="{% url 'scheduleItem_update' pk=schedule_item.id %}" id="item_update{{schedule_item.id}}">
-                            {% csrf_token %}
-                            <input type="hidden" name="schedule" value="{{ schedule_item.schedule.id }}">
-                            <input type="hidden" name="task" value="{{ schedule_item.task.id }}">
-                            <input type="hidden" name="employee" value="{{ schedule_item.employee.id }}">
-                            <input type="hidden" name="schedule_item_id" value="{{ schedule_item.id }}">
-                            <input type="hidden" name="assigned_time" value="{{ schedule_item.assigned_time }}">
-                            <select name="progression_rate" id="id_progression_rate" class="progression-rate-select" data-default="{{ schedule_item.progression_rate }}">
-                                <option value="0">0 %</option>
-                                <option value="25">25 %</option>
-                                <option value="50">50 %</option>
-                                <option value="75">75 %</option>
-                                <option value="100">100 %</option>
-                            </select>
-                        </form>
-                    </td>
-                    <td><button type="submit" form="item_update{{schedule_item.id}}">Validez</button></td>
-                        </tr>
+        {% with progress=schedule_item.progression_rate|default_if_none:0 %}
+        {% if schedule_item.employee != None and progress < 100 %}
+        {% if schedule_item.task.progress_query.query == 'N/A' or not schedule_item.task.progress_query %}
+            {% include 'schedule/manual_progress_row.html' with action_label='Valider' %}
         {% endif %}
         {% endif %}
+        {% endwith %}
         {% endfor %}
     </tbody>
 </table>
@@ -252,13 +223,14 @@
 
 <h1>Taches Terminees</h1>
 <h2>Manuelles</h2>
-<table class="filtertable">
+<table class="filtertable" data-manual-table>
     <thead>
         <tr>
-            <th>Employee</th>
-            <th>Tache</th>
-            <th>Priorite</th>
-            <th>Temps Assigne</th>
+            {% if can_manage_trt %}<th data-orderable="false"><label class="bulk-page-select" data-manual-page-control hidden><input type="checkbox" data-manual-page-select aria-label="Sélectionner les tâches visibles sur cette page"> Page</label></th>{% endif %}
+            <th>Employé</th>
+            <th>Tâche</th>
+            <th>Priorité</th>
+            <th>Temps assigné</th>
             <th>Objectif</th>
             <th>Progression</th>
             <th>Actions</th>
@@ -266,47 +238,17 @@
     </thead>
     <tbody>
         {% for schedule_item in schedule_items %}
-        {% if schedule_item.employee != None and schedule_item.progression_rate >= 100 %}
-        {% if  schedule_item.task.progress_query.query == 'N/A' or not schedule_item.task.progress_query %}
-
-        <tr>
-            <td>{{ schedule_item.employee }}</td>
-                {% if schedule_item.task_identifier != Null%}
-                  <td>{{ schedule_item.task }}:{{schedule_item.task_identifier}}</td>
-                {% else %}
-                  <td>{{ schedule_item.task }}</td>
-                {% endif %}
-                    <td>{{ schedule_item.task.priority }} </td>
-                    <td>{{ schedule_item.assigned_time }}</td>
-                {% with result=schedule_item.assigned_time|division:schedule_item.task.average_duration %}
-                    <td>{{ result }}</td>
-                {% endwith %}
-
-                    <td>
-                        <!-- Form for modifying assigned_time -->
-                        <form method="post" action="{% url 'scheduleItem_update' pk=schedule_item.id %}" id="item_update{{schedule_item.id}}">
-                            {% csrf_token %}
-                            <input type="hidden" name="schedule" value="{{ schedule_item.schedule.id }}">
-                            <input type="hidden" name="task" value="{{ schedule_item.task.id }}">
-                            <input type="hidden" name="employee" value="{{ schedule_item.employee.id }}">
-                            <input type="hidden" name="schedule_item_id" value="{{ schedule_item.id }}">
-                            <input type="hidden" name="assigned_time" value="{{ schedule_item.assigned_time }}">
-                            <select name="progression_rate" id="id_progression_rate" class="progression-rate-select" data-default="{{ schedule_item.progression_rate }}">
-                                <option value="0">0 %</option>
-                                <option value="25">25 %</option>
-                                <option value="50">50 %</option>
-                                <option value="75">75 %</option>
-                                <option value="100">100 %</option>
-                            </select>
-                        </form>
-                    </td>
-                    <td><button type="submit" form="item_update{{schedule_item.id}}">Modifier</button></td>
-                        </tr>
+        {% with progress=schedule_item.progression_rate|default_if_none:0 %}
+        {% if schedule_item.employee != None and progress >= 100 %}
+        {% if schedule_item.task.progress_query.query == 'N/A' or not schedule_item.task.progress_query %}
+            {% include 'schedule/manual_progress_row.html' with action_label='Modifier' %}
         {% endif %}
         {% endif %}
+        {% endwith %}
         {% endfor %}
     </tbody>
 </table>
+{% if can_manage_trt %}<div class="bulk-manual-bottom">{% include 'schedule/bulk_manual_submit.html' %}</div>{% endif %}
 <h2>Auto</h2>
 <table class="filtertable">
     <thead>
@@ -482,12 +424,6 @@
 <script defer src = "{% static 'js/js_utils.js' %}"></script>
 
 <script>
-// Wait for the DOM to fully load
-document.addEventListener('DOMContentLoaded', function() {
-
-    initializeProgressionRateSelects();
-});
-
 // Function to handle tab switching
 function openTab(evt, tabName) {
   // Get all elements with class="table-container"
@@ -506,18 +442,9 @@ function openTab(evt, tabName) {
   evt.currentTarget.className += " active";
 }
 
-// Initialize progression rate selects to default values
-function initializeProgressionRateSelects() {
-    const selects = document.querySelectorAll('.progression-rate-select');
-    selects.forEach(function(select) {
-        const defaultProgression = parseInt(select.getAttribute('data-default'));
-        for (let i = 0; i < select.options.length; i++) {
-            if (parseInt(select.options[i].value) === defaultProgression) {
-                select.options[i].selected = true;
-                break;
-            }
-        }
-    });
-}
 </script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/bulk_manual_progress.js' %}" defer></script>
 {% endblock %}
