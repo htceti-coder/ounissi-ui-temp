@@ -1,0 +1,21 @@
+{% extends "base2.html" %}
+
+{% block title %}Supprimer Pointage{% endblock %}
+
+{% block content %}
+<div class="w3-panel">
+    <h2>Confirmer la suppression du pointage</h2>
+    <p>
+        Voulez-vous vraiment supprimer la feuille de pointage de
+        <strong>{{ timesheet.employee|default:object.employee }}</strong>
+        du <strong>{{ timesheet.date|default:object.date }}</strong> ?
+    </p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">
+            <i class="fa fa-trash"></i> Confirmer la suppression
+        </button>
+        <a href="{% url 'timesheet_list' %}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div>
+{% endblock %}

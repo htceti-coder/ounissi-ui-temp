@@ -1,0 +1,205 @@
+{% extends "base2.html" %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}
+    {% if timesheet or object %}Modifier Pointage{% else %}Nouveau Pointage{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="w3-panel">
+    <div class="page-intro">
+        <div class="page-intro__copy">
+            <h1>
+                {% if timesheet or object %}
+                    Modifier la feuille de pointage
+                {% else %}
+                    Nouveau pointage (3 créneaux)
+                {% endif %}
+            </h1>
+            <p>
+                Saisie ou correction manuelle des créneaux horaires (Modèle <code>Timesheet</code> — contrainte <code>unique_employee_date</code>).
+            </p>
+        </div>
+        <span class="page-intro__badge">Timesheet · 3 créneaux</span>
+    </div>
+
+    <form method="post" id="timesheet-entry-form">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="app-alert app-alert--error">
+                <i class="fa fa-exclamation-circle"></i>
+                <span>{{ form.non_field_errors }}</span>
+            </div>
+        {% endif %}
+
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label for="id_employee">Employé</label>
+                {% if form.employee %}
+                    {{ form.employee }}
+                {% else %}
+                    <select name="employee" id="id_employee" class="form-control single_select" required>
+                        <option value="">Sélectionner un employé...</option>
+                        {% for emp in employees %}
+                            <option value="{{ emp.id }}" {% if timesheet.employee.id == emp.id or object.employee.id == emp.id %}selected{% endif %}>
+                                {{ emp }} {% if emp.zk_id %}(ZK: {{ emp.zk_id }}){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                {% endif %}
+            </div>
+
+            <div class="form-group col-md-4">
+                <label for="id_date">Date de pointage</label>
+                {% if form.date %}
+                    {{ form.date }}
+                {% else %}
+                    <input type="date" name="date" id="id_date" class="form-control"
+                           value="{{ timesheet.date|date:'Y-m-d'|default:object.date|date:'Y-m-d' }}" required>
+                {% endif %}
+            </div>
+
+            <div class="form-group col-md-2 d-flex align-items-end">
+                <label class="d-flex align-items-center" style="gap:8px; cursor:pointer; margin-bottom:10px;">
+                    {% if form.is_confirmed %}
+                        {{ form.is_confirmed }}
+                    {% else %}
+                        <input type="checkbox" name="is_confirmed" id="id_is_confirmed"
+                               {% if timesheet.is_confirmed or object.is_confirmed %}checked{% endif %}>
+                    {% endif %}
+                    <span>Confirmé</span>
+                </label>
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- 3 Créneaux horaires (logique exacte de Timesheet.calculate_working_hours) -->
+        <div class="form-row">
+            <div class="form-group col-md-4">
+                <div class="card p-3">
+                    <h5 style="margin-top:0;"><i class="fa fa-clock-o"></i> Créneau 1 (Principal)</h5>
+                    <label for="id_start_time">Heure d'entrée 1</label>
+                    {% if form.start_time %}
+                        {{ form.start_time }}
+                    {% else %}
+                        <input type="time" name="start_time" id="id_start_time" class="form-control ts-time-input"
+                               value="{{ timesheet.start_time|time:'H:i'|default:object.start_time|time:'H:i' }}">
+                    {% endif %}
+
+                    <label for="id_end_time" class="mt-2">Heure de sortie 1</label>
+                    {% if form.end_time %}
+                        {{ form.end_time }}
+                    {% else %}
+                        <input type="time" name="end_time" id="id_end_time" class="form-control ts-time-input"
+                               value="{{ timesheet.end_time|time:'H:i'|default:object.end_time|time:'H:i' }}">
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-group col-md-4">
+                <div class="card p-3">
+                    <h5 style="margin-top:0;"><i class="fa fa-clock-o"></i> Créneau 2 (Reprise / Après-midi)</h5>
+                    <label for="id_start_time_2">Heure d'entrée 2</label>
+                    {% if form.start_time_2 %}
+                        {{ form.start_time_2 }}
+                    {% else %}
+                        <input type="time" name="start_time_2" id="id_start_time_2" class="form-control ts-time-input"
+                               value="{{ timesheet.start_time_2|time:'H:i'|default:object.start_time_2|time:'H:i' }}">
+                    {% endif %}
+
+                    <label for="id_end_time_2" class="mt-2">Heure de sortie 2</label>
+                    {% if form.end_time_2 %}
+                        {{ form.end_time_2 }}
+                    {% else %}
+                        <input type="time" name="end_time_2" id="id_end_time_2" class="form-control ts-time-input"
+                               value="{{ timesheet.end_time_2|time:'H:i'|default:object.end_time_2|time:'H:i' }}">
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-group col-md-4">
+                <div class="card p-3">
+                    <h5 style="margin-top:0;"><i class="fa fa-clock-o"></i> Créneau 3 (Garde / Soir)</h5>
+                    <label for="id_start_time_3">Heure d'entrée 3</label>
+                    {% if form.start_time_3 %}
+                        {{ form.start_time_3 }}
+                    {% else %}
+                        <input type="time" name="start_time_3" id="id_start_time_3" class="form-control ts-time-input"
+                               value="{{ timesheet.start_time_3|time:'H:i'|default:object.start_time_3|time:'H:i' }}">
+                    {% endif %}
+
+                    <label for="id_end_time_3" class="mt-2">Heure de sortie 3</label>
+                    {% if form.end_time_3 %}
+                        {{ form.end_time_3 }}
+                    {% else %}
+                        <input type="time" name="end_time_3" id="id_end_time_3" class="form-control ts-time-input"
+                               value="{{ timesheet.end_time_3|time:'H:i'|default:object.end_time_3|time:'H:i' }}">
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="app-alert app-alert--info mt-2">
+            <i class="fa fa-calculator"></i>
+            <span>
+                Durée totale calculée (<code>calculate_working_hours</code>) :
+                <strong id="ts-calculated-hours">0.00 h</strong>
+                <small class="text-muted ml-2">(Le créneau 2 n'est comptabilisé que si le créneau 1 est complet ; idem pour le créneau 3)</small>
+            </span>
+        </div>
+
+        <div class="mt-3 d-flex" style="gap:10px;">
+            <button type="submit" class="btn btn-primary">
+                <i class="fa fa-check"></i> Enregistrer le pointage
+            </button>
+            <a href="{% url 'timesheet_list' %}" class="btn btn-secondary">
+                <i class="fa fa-arrow-left"></i> Retour à la liste
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    function parseMinutes(val) {
+        if (!val || val.indexOf(':') === -1) return null;
+        var parts = val.split(':');
+        return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+    }
+
+    function computeWorkingHours() {
+        var s1 = parseMinutes((document.getElementById('id_start_time') || {}).value);
+        var e1 = parseMinutes((document.getElementById('id_end_time') || {}).value);
+        var s2 = parseMinutes((document.getElementById('id_start_time_2') || {}).value);
+        var e2 = parseMinutes((document.getElementById('id_end_time_2') || {}).value);
+        var s3 = parseMinutes((document.getElementById('id_start_time_3') || {}).value);
+        var e3 = parseMinutes((document.getElementById('id_end_time_3') || {}).value);
+
+        var totalMinutes = 0;
+        if (s1 !== null && e1 !== null && e1 > s1) {
+            totalMinutes += (e1 - s1);
+            if (s2 !== null && e2 !== null && e2 > s2) {
+                totalMinutes += (e2 - s2);
+                if (s3 !== null && e3 !== null && e3 > s3) {
+                    totalMinutes += (e3 - s3);
+                }
+            }
+        }
+        var hours = (totalMinutes / 60).toFixed(2);
+        var out = document.getElementById('ts-calculated-hours');
+        if (out) out.textContent = hours + ' h (' + Math.floor(totalMinutes / 60) + 'h' + String(totalMinutes % 60).padStart(2, '0') + ')';
+    }
+
+    document.querySelectorAll('#timesheet-entry-form input[type="time"]').forEach(function (input) {
+        input.addEventListener('input', computeWorkingHours);
+        input.addEventListener('change', computeWorkingHours);
+    });
+    computeWorkingHours();
+})();
+</script>
+{% endblock %}

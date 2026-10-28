@@ -1,0 +1,13 @@
+{% extends "base2.html" %}
+
+{#
+  Compatibility bridge for the templates that still extend base.html.
+  All functional blocks from the original base are retained while the shared
+  shell is provided by base2.html. Feature templates do not need modification.
+#}
+
+{% block title %}My Site{% endblock %}
+
+{% block style %}
+    {% block stylesheets %}{% endblock %}
+{% endblock %}

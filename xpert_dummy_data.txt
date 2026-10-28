@@ -1,0 +1,1915 @@
+{
+    "VENTE RAPIDE AU COMPTOIR": {
+        "columns": [
+            "OP_DATE",
+            "OP_USER",
+            "NBR_LINES",
+            "TOTAL_TIME"
+        ],
+        "sample_data": [
+            [
+                "2026-10-19",
+                "ABDENOUR",
+                14,
+                630
+            ],
+            [
+                "2026-10-19",
+                "ABDERAHMAN",
+                19,
+                855
+            ],
+            [
+                "2026-10-19",
+                "AMEL",
+                29,
+                1305
+            ],
+            [
+                "2026-10-19",
+                "DJAMEL",
+                45,
+                2025
+            ],
+            [
+                "2026-10-19",
+                "DJOUDA",
+                68,
+                3060
+            ],
+            [
+                "2026-10-19",
+                "HABIBA",
+                50,
+                2250
+            ],
+            [
+                "2026-10-19",
+                "HOUSSEM",
+                23,
+                1035
+            ],
+            [
+                "2026-10-19",
+                "KHAOULA",
+                21,
+                945
+            ],
+            [
+                "2026-10-19",
+                "RAYEN",
+                31,
+                1395
+            ],
+            [
+                "2026-10-19",
+                "SELMA",
+                60,
+                2700
+            ],
+            [
+                "2026-10-19",
+                "TAKI",
+                102,
+                4590
+            ],
+            [
+                "2026-10-18",
+                "ABDENOUR",
+                90,
+                4050
+            ],
+            [
+                "2026-10-18",
+                "ABDERAHMAN",
+                51,
+                2295
+            ],
+            [
+                "2026-10-18",
+                "AMEL",
+                17,
+                765
+            ],
+            [
+                "2026-10-18",
+                "DJAMEL",
+                16,
+                720
+            ],
+            [
+                "2026-10-18",
+                "DJOUDA",
+                115,
+                5175
+            ],
+            [
+                "2026-10-18",
+                "FARES",
+                41,
+                1845
+            ],
+            [
+                "2026-10-18",
+                "HABIBA",
+                23,
+                1035
+            ],
+            [
+                "2026-10-18",
+                "HOUSSEM",
+                36,
+                1620
+            ],
+            [
+                "2026-10-18",
+                "KHAOULA",
+                58,
+                2610
+            ]
+        ],
+        "default_parameters_used": {
+            "start_date": "2000-01-01",
+            "end_date": "2100-02-01",
+            "xp_id": "%%"
+        },
+        "status": "success"
+    },
+    "VENTE EN INSTANCE SANS CM": {
+        "columns": [
+            "OP_DATE",
+            "OP_USER",
+            "NBR_LINES",
+            "TOTAL_TIME"
+        ],
+        "sample_data": [
+            [
+                "2022-08-09",
+                "AMEL",
+                1,
+                45
+            ],
+            [
+                "2022-08-13",
+                "ABDERAHMAN",
+                4,
+                180
+            ],
+            [
+                "2022-08-13",
+                "AMEL",
+                7,
+                315
+            ],
+            [
+                "2022-08-13",
+                "RAYEN",
+                1,
+                45
+            ],
+            [
+                "2022-08-14",
+                "ABDERAHMAN",
+                2,
+                90
+            ],
+            [
+                "2022-08-14",
+                "Administrateur",
+                4,
+                180
+            ],
+            [
+                "2022-08-14",
+                "AMEL",
+                12,
+                540
+            ],
+            [
+                "2022-08-14",
+                "RAYEN",
+                1,
+                45
+            ],
+            [
+                "2022-08-14",
+                "SELMA",
+                3,
+                135
+            ],
+            [
+                "2022-08-14",
+                "TAKI",
+                10,
+                450
+            ],
+            [
+                "2022-08-15",
+                "ABDENOUR",
+                3,
+                135
+            ],
+            [
+                "2022-08-15",
+                "ABDERAHMAN",
+                5,
+                225
+            ],
+            [
+                "2022-08-15",
+                "Administrateur",
+                4,
+                180
+            ],
+            [
+                "2022-08-15",
+                "AMEL",
+                6,
+                270
+            ],
+            [
+                "2022-08-15",
+                "RAYEN",
+                1,
+                45
+            ],
+            [
+                "2022-08-15",
+                "SELMA",
+                3,
+                135
+            ],
+            [
+                "2022-08-15",
+                "TAKI",
+                8,
+                360
+            ],
+            [
+                "2022-08-16",
+                "ABDENOUR",
+                2,
+                90
+            ],
+            [
+                "2022-08-16",
+                "ABDERAHMAN",
+                3,
+                135
+            ],
+            [
+                "2022-08-16",
+                "SELMA",
+                3,
+                135
+            ]
+        ],
+        "default_parameters_used": {
+            "start_date": "2000-01-01",
+            "end_date": "2100-02-01",
+            "xp_id": "%%"
+        },
+        "status": "success"
+    },
+    "BL et RETOUR CLIENT": {
+        "columns": [
+            "OP_DATE",
+            "OP_USER",
+            "NBR_LINES",
+            "TOTAL_TIME"
+        ],
+        "sample_data": [
+            [
+                "2022-08-05",
+                "ABDERAHMAN",
+                1,
+                60
+            ],
+            [
+                "2022-08-10",
+                "ABDERAHMAN",
+                2,
+                120
+            ],
+            [
+                "2022-08-10",
+                "Administrateur",
+                1,
+                60
+            ],
+            [
+                "2022-08-10",
+                "AMEL",
+                6,
+                360
+            ],
+            [
+                "2022-08-11",
+                "AMEL",
+                1,
+                60
+            ],
+            [
+                "2022-08-13",
+                "ABDENOUR",
+                1,
+                60
+            ],
+            [
+                "2022-08-13",
+                "ABDERAHMAN",
+                1,
+                60
+            ],
+            [
+                "2022-08-13",
+                "SELMA",
+                1,
+                60
+            ],
+            [
+                "2022-08-14",
+                "ABDERAHMAN",
+                1,
+                60
+            ],
+            [
+                "2022-08-14",
+                "AMEL",
+                1,
+                60
+            ],
+            [
+                "2022-08-14",
+                "FARES",
+                6,
+                360
+            ],
+            [
+                "2022-08-15",
+                "ABDERAHMAN",
+                2,
+                120
+            ],
+            [
+                "2022-08-15",
+                "AMEL",
+                2,
+                120
+            ],
+            [
+                "2022-08-16",
+                "Administrateur",
+                1,
+                60
+            ],
+            [
+                "2022-08-16",
+                "AMEL",
+                1,
+                60
+            ],
+            [
+                "2022-08-16",
+                "FARES",
+                1,
+                60
+            ],
+            [
+                "2022-08-16",
+                "SELMA",
+                1,
+                60
+            ],
+            [
+                "2022-08-16",
+                "TAKI",
+                3,
+                180
+            ],
+            [
+                "2022-08-17",
+                "ABDERAHMAN",
+                3,
+                180
+            ],
+            [
+                "2022-08-17",
+                "SELMA",
+                2,
+                120
+            ]
+        ],
+        "default_parameters_used": {
+            "start_date": "2000-01-01",
+            "end_date": "2100-02-01",
+            "xp_id": "%%"
+        },
+        "status": "success"
+    },
+    "VALIDATION  INSTANCE SANS CTR": {
+        "columns": [
+            "OP_DATE",
+            "OP_USER",
+            "NBR_LINES",
+            "TOTAL_TIME"
+        ],
+        "sample_data": [
+            [
+                "2022-08-14",
+                "ABDENOUR",
+                3,
+                300
+            ],
+            [
+                "2022-08-14",
+                "ABDERAHMAN",
+                4,
+                400
+            ],
+            [
+                "2022-08-14",
+                "TAKI",
+                2,
+                200
+            ],
+            [
+                "2022-08-15",
+                "TAKI",
+                12,
+                1200
+            ],
+            [
+                "2022-08-16",
+                "SELMA",
+                3,
+                300
+            ],
+            [
+                "2022-08-17",
+                "AMEL",
+                2,
+                200
+            ],
+            [
+                "2022-08-17",
+                "SELMA",
+                1,
+                100
+            ],
+            [
+                "2022-08-18",
+                "ABDENOUR",
+                3,
+                300
+            ],
+            [
+                "2022-08-18",
+                "RAYEN",
+                4,
+                400
+            ],
+            [
+                "2022-08-20",
+                "ABDENOUR",
+                3,
+                300
+            ],
+            [
+                "2022-08-20",
+                "AMEL",
+                1,
+                100
+            ],
+            [
+                "2022-08-20",
+                "SELMA",
+                4,
+                400
+            ],
+            [
+                "2022-08-21",
+                "ABDENOUR",
+                6,
+                600
+            ],
+            [
+                "2022-08-22",
+                "ABDERAHMAN",
+                2,
+                200
+            ],
+            [
+                "2022-08-22",
+                "RAYEN",
+                7,
+                700
+            ],
+            [
+                "2022-08-22",
+                "SELMA",
+                5,
+                500
+            ],
+            [
+                "2022-08-23",
+                "RAYEN",
+                1,
+                100
+            ],
+            [
+                "2022-08-23",
+                "TAKI",
+                2,
+                200
+            ],
+            [
+                "2022-08-24",
+                "ABDENOUR",
+                4,
+                400
+            ],
+            [
+                "2022-08-24",
+                "Administrateur",
+                2,
+                200
+            ]
+        ],
+        "default_parameters_used": {
+            "start_date": "2000-01-01",
+            "end_date": "2100-02-01",
+            "xp_id": "%%"
+        },
+        "status": "success"
+    },
+    "VENTE CHIFA": {
+        "columns": [
+            "OP_DATE",
+            "OP_USER",
+            "NBR_LINES",
+            "TOTAL_TIME"
+        ],
+        "sample_data": [
+            [
+                "2022-08-13",
+                "ABDENOUR",
+                6,
+                780
+            ],
+            [
+                "2022-08-13",
+                "ABDERAHMAN",
+                7,
+                910
+            ],
+            [
+                "2022-08-13",
+                "AMEL",
+                16,
+                2080
+            ],
+            [
+                "2022-08-13",
+                "HABIBA",
+                2,
+                260
+            ],
+            [
+                "2022-08-13",
+                "TAKI",
+                2,
+                260
+            ],
+            [
+                "2022-08-14",
+                "ABDENOUR",
+                19,
+                2470
+            ],
+            [
+                "2022-08-14",
+                "ABDERAHMAN",
+                27,
+                3510
+            ],
+            [
+                "2022-08-14",
+                "Administrateur",
+                2,
+                260
+            ],
+            [
+                "2022-08-14",
+                "AMEL",
+                10,
+                1300
+            ],
+            [
+                "2022-08-14",
+                "FARES",
+                11,
+                1430
+            ],
+            [
+                "2022-08-14",
+                "RAYEN",
+                14,
+                1820
+            ],
+            [
+                "2022-08-14",
+                "SELMA",
+                20,
+                2600
+            ],
+            [
+                "2022-08-14",
+                "TAKI",
+                16,
+                2080
+            ],
+            [
+                "2022-08-15",
+                "ABDENOUR",
+                46,
+                5980
+            ],
+            [
+                "2022-08-15",
+                "ABDERAHMAN",
+                21,
+                2730
+            ],
+            [
+                "2022-08-15",
+                "AMEL",
+                13,
+                1690
+            ],
+            [
+                "2022-08-15",
+                "FARES",
+                4,
+                520
+            ],
+            [
+                "2022-08-15",
+                "RAYEN",
+                25,
+                3250
+            ],
+            [
+                "2022-08-15",
+                "SELMA",
+                13,
+                1690
+            ],
+            [
+                "2022-08-15",
+                "TAKI",
+                10,
+                1300
+            ]
+        ],
+        "default_parameters_used": {
+            "start_date": "2000-01-01",
+            "end_date": "2100-02-01",
+            "xp_id": "%%"
+        },
+        "status": "success"
+    },
+    "VENTE + ENVOIE AU CONTROLE MEDICAL": {
+        "columns": [
+            "OP_DATE",
+            "OP_USER",
+            "NBR_LINES",
+            "TOTAL_TIME"
+        ],
+        "sample_data": [
+            [
+                "2022-08-14",
+                "Administrateur",
+                4,
+                180
+            ],
+            [
+                "2022-08-14",
+                "AMEL",
+                6,
+                270
+            ],
+            [
+                "2022-08-15",
+                "SELMA",
+                15,
+                675
+            ],
+            [
+                "2022-08-16",
+                "ABDENOUR",
+                7,
+                315
+            ],
+            [
+                "2022-08-17",
+                "Administrateur",
+                8,
+                360
+            ],
+            [
+                "2022-08-17",
+                "TAKI",
+                2,
+                90
+            ],
+            [
+                "2022-08-18",
+                "TAKI",
+                1,
+                45
+            ],
+            [
+                "2022-08-21",
+                "ABDERAHMAN",
+                6,
+                270
+            ],
+            [
+                "2022-08-21",
+                "RAYEN",
+                2,
+                90
+            ],
+            [
+                "2022-08-21",
+                "TAKI",
+                2,
+                90
+            ],
+            [
+                "2022-08-22",
+                "RAYEN",
+                8,
+                360
+            ],
+            [
+                "2022-08-22",
+                "SELMA",
+                2,
+                90
+            ],
+            [
+                "2022-08-23",
+                "RAYEN",
+                8,
+                360
+            ],
+            [
+                "2022-08-24",
+                "AMEL",
+                1,
+                45
+            ],
+            [
+                "2022-08-25",
+                "ABDENOUR",
+                1,
+                45
+            ],
+            [
+                "2022-08-25",
+                "AMEL",
+                14,
+                630
+            ],
+            [
+                "2022-08-25",
+                "RAYEN",
+                5,
+                225
+            ],
+            [
+                "2022-08-27",
+                "Administrateur",
+                6,
+                270
+            ],
+            [
+                "2022-08-30",
+                "ABDENOUR",
+                24,
+                1080
+            ],
+            [
+                "2022-08-30",
+                "ABDERAHMAN",
+                5,
+                225
+            ]
+        ],
+        "default_parameters_used": {
+            "start_date": "2000-01-01",
+            "end_date": "2100-02-01",
+            "xp_id": "%%"
+        },
+        "status": "success"
+    },
+    "VALIDATION CONTROLE MEDICAL": {
+        "columns": [
+            "OP_DATE",
+            "OP_USER",
+            "NBR_LINES",
+            "TOTAL_TIME"
+        ],
+        "sample_data": [
+            [
+                "2022-08-16",
+                "ABDENOUR",
+                15,
+                2250
+            ],
+            [
+                "2022-08-20",
+                "AMEL",
+                4,
+                600
+            ],
+            [
+                "2022-08-22",
+                "ABDENOUR",
+                8,
+                1200
+            ],
+            [
+                "2022-08-22",
+                "RAYEN",
+                8,
+                1200
+            ],
+            [
+                "2022-08-23",
+                "ABDENOUR",
+                1,
+                150
+            ],
+            [
+                "2022-08-25",
+                "ABDENOUR",
+                15,
+                2250
+            ],
+            [
+                "2022-08-27",
+                "ABDENOUR",
+                7,
+                1050
+            ],
+            [
+                "2022-08-27",
+                "AMEL",
+                5,
+                750
+            ],
+            [
+                "2022-08-30",
+                "ABDENOUR",
+                4,
+                600
+            ],
+            [
+                "2022-08-30",
+                "ABDERAHMAN",
+                5,
+                750
+            ],
+            [
+                "2022-08-30",
+                "ABDERAHMAN",
+                4,
+                600
+            ],
+            [
+                "2022-08-31",
+                "ABDENOUR",
+                18,
+                2700
+            ],
+            [
+                "2022-08-31",
+                "ABDENOUR",
+                3,
+                450
+            ],
+            [
+                "2022-09-01",
+                "ABDENOUR",
+                8,
+                1200
+            ],
+            [
+                "2022-09-03",
+                "ABDENOUR",
+                3,
+                450
+            ],
+            [
+                "2022-09-04",
+                "ABDENOUR",
+                1,
+                150
+            ],
+            [
+                "2022-09-04",
+                "SELMA",
+                7,
+                1050
+            ],
+            [
+                "2022-09-05",
+                "HOUSSEM",
+                32,
+                4800
+            ],
+            [
+                "2022-09-06",
+                "ABDENOUR",
+                7,
+                1050
+            ],
+            [
+                "2022-09-06",
+                "HABIBA",
+                4,
+                600
+            ]
+        ],
+        "default_parameters_used": {
+            "start_date": "2000-01-01",
+            "end_date": "2100-02-01",
+            "xp_id": "%%"
+        },
+        "status": "success"
+    },
+    "EMPLOYEES XPERT LOGS": {
+        "columns": [
+            "OP_DATE",
+            "OP_USER",
+            "FIRST_LOG",
+            "LAST_LOG"
+        ],
+        "sample_data": [],
+        "default_parameters_used": {
+            "act_date": "2026-01-01",
+            "xp_id": "%%"
+        },
+        "status": "success"
+    },
+    "LISTE FOURNISSEURS": {
+        "columns": [
+            "SupplierName"
+        ],
+        "sample_data": [
+            [
+                " PHARMACIE WALID DJAAR"
+            ],
+            [
+                "ACHAT LIBRE"
+            ],
+            [
+                "ADA DISTRIBUTION"
+            ],
+            [
+                "AHMANE  OUARDA"
+            ],
+            [
+                "AIDI PHARM"
+            ],
+            [
+                "ARAB ROCHDI MEDIC"
+            ],
+            [
+                "ARRIVAGE"
+            ],
+            [
+                "ARVEA"
+            ],
+            [
+                "ASTER MED PHARM"
+            ],
+            [
+                "AWANE"
+            ],
+            [
+                "AYAM-BATNA"
+            ],
+            [
+                "AZIR PARAPHARM"
+            ],
+            [
+                "BELGUECHI PHARM BIP"
+            ],
+            [
+                "BFM SANTE"
+            ],
+            [
+                "Big Dis"
+            ],
+            [
+                "BIOMIL"
+            ],
+            [
+                "BIOPURE BISKRA"
+            ],
+            [
+                "BIOTEKA PARAPHARM"
+            ],
+            [
+                "BLEDINE ( CHARK COS)"
+            ],
+            [
+                "BOUAKAZ FARES"
+            ]
+        ],
+        "default_parameters_used": {
+            "ACTIF_TIERS ": "1"
+        },
+        "status": "success"
+    },
+    "SAISIE FACTURES/BR SUR LE LOGICIEL": {
+        "columns": [
+            "OP_DATE",
+            "OP_USER",
+            "NBR_LINES",
+            "TOTAL_TIME",
+            "TYPE_DOC",
+            "REF_TIERS",
+            "SupplierName"
+        ],
+        "sample_data": [
+            [
+                "2022-05-22",
+                "Administrateur",
+                33,
+                495,
+                "LF",
+                "E0254",
+                "PACOCENTER"
+            ],
+            [
+                "2022-05-24",
+                "Administrateur",
+                91,
+                1365,
+                "LF",
+                "2022A003293",
+                "DERMOCARE SARL"
+            ],
+            [
+                "2022-05-24",
+                "Administrateur",
+                11,
+                165,
+                "LF",
+                "04506/2022",
+                "EASY PARAPHARM"
+            ],
+            [
+                "2022-05-24",
+                "Administrateur",
+                5,
+                75,
+                "LF",
+                "04507/2022",
+                "EASY PARAPHARM"
+            ],
+            [
+                "2022-05-24",
+                "Administrateur",
+                6,
+                90,
+                "LF",
+                "04815/2022",
+                "EASY PARAPHARM"
+            ],
+            [
+                "2022-05-24",
+                "Administrateur",
+                18,
+                270,
+                "LF",
+                "04822/2022",
+                "EASY PARAPHARM"
+            ],
+            [
+                "2022-05-24",
+                "Administrateur",
+                28,
+                420,
+                "LF",
+                "04823/2022",
+                "EASY PARAPHARM"
+            ],
+            [
+                "2022-05-24",
+                "Administrateur",
+                20,
+                300,
+                "LF",
+                "04826/2022",
+                "EASY PARAPHARM"
+            ],
+            [
+                "2022-05-24",
+                "Administrateur",
+                18,
+                270,
+                "LF",
+                "04827/2022",
+                "EASY PARAPHARM"
+            ],
+            [
+                "2022-05-24",
+                "Administrateur",
+                5,
+                75,
+                "LF",
+                "04829/2022",
+                "EASY PARAPHARM"
+            ],
+            [
+                "2022-05-24",
+                "Administrateur",
+                9,
+                135,
+                "LF",
+                "04874/2022",
+                "EASY PARAPHARM"
+            ],
+            [
+                "2022-05-28",
+                "Administrateur",
+                32,
+                480,
+                "LF",
+                "01/2022",
+                "CECOMED"
+            ],
+            [
+                "2022-05-29",
+                "Administrateur",
+                76,
+                1140,
+                "LF",
+                "01/2022",
+                "CECOMED"
+            ],
+            [
+                "2022-05-29",
+                "Administrateur",
+                14,
+                210,
+                "LF",
+                "22017792",
+                "HADIL PARAPHARM"
+            ],
+            [
+                "2022-05-29",
+                "Administrateur",
+                8,
+                120,
+                "LF",
+                "22017882",
+                "HADIL PARAPHARM"
+            ],
+            [
+                "2022-05-31",
+                "Administrateur",
+                22,
+                330,
+                "LF",
+                "1372/2022",
+                "BELGUECHI PHARM BIP"
+            ],
+            [
+                "2022-05-31",
+                "Administrateur",
+                5,
+                75,
+                "LF",
+                "22017793",
+                "HADIL PARAPHARM"
+            ],
+            [
+                "2022-05-31",
+                "Administrateur",
+                5,
+                75,
+                "LF",
+                "22017794",
+                "HADIL PARAPHARM"
+            ],
+            [
+                "2022-05-31",
+                "Administrateur",
+                15,
+                225,
+                "LF",
+                "22017798",
+                "HADIL PARAPHARM"
+            ],
+            [
+                "2022-05-31",
+                "Administrateur",
+                3,
+                45,
+                "LF",
+                "22017807",
+                "HADIL PARAPHARM"
+            ]
+        ],
+        "default_parameters_used": {
+            "start_date": "2000-01-01",
+            "end_date": "2100-02-01",
+            "xp_id": "%%",
+            "ref_tiers": "%%",
+            "supplier": "%%"
+        },
+        "status": "success"
+    },
+    "InvoiceHelper": {
+        "columns": [
+            "LIGNE",
+            "DESIGNATION",
+            "LOT",
+            "QUANTITE"
+        ],
+        "sample_data": [
+            [
+                1,
+                "SICCAFLUID",
+                "312120",
+                3.0
+            ],
+            [
+                1,
+                "MYCOSTER",
+                "",
+                2.0
+            ],
+            [
+                1,
+                "MODA SHOES SABOT FEMME CROISE NOIR 37-41",
+                "",
+                5.0
+            ],
+            [
+                1,
+                "MODA SHOES SKACHRS HYPER PILLARS BLEU/MAUVE T/36",
+                "",
+                1.0
+            ],
+            [
+                1,
+                "AMANTEX 100 MG B/50 GELUES",
+                "",
+                2.0
+            ],
+            [
+                1,
+                "PACK LINGETTES ULTRA 2 PCS",
+                "",
+                112.0
+            ],
+            [
+                1,
+                "TACROLIN 0.1% - PROTOPIC -",
+                "",
+                1.0
+            ],
+            [
+                1,
+                "ARIMIDEX",
+                "",
+                1.0
+            ],
+            [
+                1,
+                "DIPROSTENE",
+                "",
+                1.0
+            ],
+            [
+                1,
+                "EMEND 125/80 MG B/03",
+                "",
+                1.0
+            ],
+            [
+                1,
+                "ANDROTARDYL",
+                "",
+                1.0
+            ],
+            [
+                1,
+                "MODA SHOES SKACHRS FEMME BANDE CROISE NOIR/MAUVVE T/36-41",
+                "",
+                6.0
+            ],
+            [
+                1,
+                "DOTUR",
+                "GB0020",
+                2.0
+            ],
+            [
+                1,
+                "DAFLON",
+                "",
+                1.0
+            ],
+            [
+                1,
+                "SOLACY ADULTE B/45 GELULES ",
+                "",
+                5.0
+            ],
+            [
+                1,
+                "SOLACY PEDIATRIQUE B/60 COMPRIMES    ",
+                "",
+                1.0
+            ],
+            [
+                1,
+                "EMEND 125/80 MG B/03",
+                "",
+                1.0
+            ],
+            [
+                1,
+                "PIRACET 800MG B/60 COMPRIMES PELLICULES - PIRACETAM -",
+                "",
+                2.0
+            ],
+            [
+                1,
+                "BAD. PERKINS WHOLE MOUTH CLEAN MEDIUM    ",
+                "",
+                12.0
+            ],
+            [
+                1,
+                "CIMIZEN BTE 30",
+                "",
+                1.0
+            ]
+        ],
+        "default_parameters_used": {
+            "ref_tiers": "%%",
+            "supplier": "%%"
+        },
+        "status": "success"
+    },
+    "SIGNALER MANQUANTS": {
+        "columns": [
+            "OP_DATE",
+            "OP_USER",
+            "NBR_LINES",
+            "TOTAL_TIME"
+        ],
+        "sample_data": [
+            [
+                "2026-10-19",
+                "SYS_ADMIN",
+                25,
+                50
+            ],
+            [
+                "2026-10-18",
+                "SYS_ADMIN",
+                23,
+                46
+            ],
+            [
+                "2026-10-17",
+                "SYS_ADMIN",
+                27,
+                54
+            ],
+            [
+                "2026-10-15",
+                "SYS_ADMIN",
+                14,
+                28
+            ],
+            [
+                "2026-10-14",
+                "SYS_ADMIN",
+                16,
+                32
+            ],
+            [
+                "2026-10-13",
+                "SYS_ADMIN",
+                21,
+                42
+            ],
+            [
+                "2026-10-12",
+                "SYS_ADMIN",
+                20,
+                40
+            ],
+            [
+                "2026-10-11",
+                "SYS_ADMIN",
+                13,
+                26
+            ],
+            [
+                "2026-10-10",
+                "SYS_ADMIN",
+                7,
+                14
+            ],
+            [
+                "2026-10-08",
+                "SYS_ADMIN",
+                19,
+                38
+            ],
+            [
+                "2026-10-07",
+                "SYS_ADMIN",
+                7,
+                14
+            ],
+            [
+                "2026-10-06",
+                "SYS_ADMIN",
+                15,
+                30
+            ],
+            [
+                "2026-10-05",
+                "SYS_ADMIN",
+                16,
+                32
+            ],
+            [
+                "2026-10-04",
+                "SYS_ADMIN",
+                13,
+                26
+            ],
+            [
+                "2026-10-03",
+                "SYS_ADMIN",
+                34,
+                68
+            ],
+            [
+                "2026-10-01",
+                "SYS_ADMIN",
+                8,
+                16
+            ],
+            [
+                "2026-09-30",
+                "SYS_ADMIN",
+                18,
+                36
+            ],
+            [
+                "2026-09-29",
+                "SYS_ADMIN",
+                15,
+                30
+            ],
+            [
+                "2026-09-28",
+                "SYS_ADMIN",
+                17,
+                34
+            ],
+            [
+                "2026-09-27",
+                "SYS_ADMIN",
+                13,
+                26
+            ]
+        ],
+        "default_parameters_used": {
+            "start_date": "2000-01-01",
+            "end_date": "2100-02-01",
+            "xp_id": "%%"
+        },
+        "status": "success"
+    },
+    "TEST STOCK": {
+        "columns": [
+            "DESIGNATION_PRODUIT",
+            "CODE_BARRE_LOT",
+            "MAGASIN",
+            "EMPLACEMENT",
+            "QUANTITE"
+        ],
+        "sample_data": [
+            [
+                "HISTAGAN 0,5MG/5ML  SIROP FL/125 ML",
+                "39718025",
+                "PHARMACIE ESPACE DE VENTE",
+                "PAC2",
+                1.0
+            ],
+            [
+                "HISTAGAN 0,5MG/5ML  SIROP FL/125 ML",
+                "39718030",
+                "PHARMACIE ESPACE DE STOCKAGE",
+                "STUE1",
+                23.0
+            ],
+            [
+                "HISTAGAN 0,5MG/5ML  SIROP FL/125 ML",
+                "39718030",
+                "PHARMACIE ESPACE DE VENTE",
+                "PAC2",
+                6.0
+            ],
+            [
+                "HISTAGAN 0,5MG/5ML  SIROP FL/125 ML",
+                "39718031",
+                "STOCK 3EME ETAGE",
+                null,
+                35.0
+            ],
+            [
+                "ALLERTINE 10 MG COMP. B/20",
+                "39729073",
+                "PHARMACIE ESPACE DE VENTE",
+                "PAC4",
+                1.0
+            ],
+            [
+                "ALLERTINE 10 MG COMP. B/20",
+                "39729082",
+                "PHARMACIE ESPACE DE VENTE",
+                "PAC4",
+                9.0
+            ],
+            [
+                "ALLERTINE 10 MG COMP. B/20",
+                "39729086",
+                "STOCK 3EME ETAGE",
+                null,
+                20.0
+            ],
+            [
+                "ALLERTINE 10 MG COMP. B/20",
+                "39729087",
+                "PHARMACIE ESPACE DE VENTE",
+                null,
+                10.0
+            ],
+            [
+                "TIRLOR 10 MG COMP. B/20",
+                "39733044",
+                "PHARMACIE ESPACE DE VENTE",
+                "PAC4",
+                12.0
+            ],
+            [
+                "TIRLOR 10 MG COMP. B/20",
+                "39733046",
+                "PHARMACIE ESPACE DE VENTE",
+                "PAC4",
+                8.0
+            ],
+            [
+                "TIRLOR 10 MG COMP. B/20",
+                "39733047",
+                "PHARMACIE ESPACE DE VENTE",
+                "PAC4",
+                10.0
+            ],
+            [
+                "TELFAST 120 MG COMP. BT/15",
+                "39750082",
+                "PHARMACIE ESPACE DE VENTE",
+                "STUK3",
+                1.0
+            ],
+            [
+                "TELFAST 120 MG COMP. BT/15",
+                "39750086",
+                "PHARMACIE ESPACE DE VENTE",
+                null,
+                10.0
+            ],
+            [
+                "TELFAST 120 MG COMP. BT/15",
+                "39750087",
+                "PHARMACIE ESPACE DE VENTE",
+                null,
+                4.0
+            ],
+            [
+                "TELFAST 120 MG COMP. BT/15",
+                "39750089",
+                "STOCK 3EME ETAGE",
+                null,
+                13.0
+            ],
+            [
+                "TELFAST 120 MG COMP. BT/15",
+                "39750090",
+                "STOCK 3EME ETAGE",
+                null,
+                10.0
+            ],
+            [
+                "TELFAST 120 MG COMP. BT/15",
+                "39750092",
+                "STOCK 3EME ETAGE",
+                null,
+                30.0
+            ],
+            [
+                "TELFAST 120 MG COMP. BT/15",
+                "39750093",
+                "STOCK 3EME ETAGE",
+                null,
+                20.0
+            ],
+            [
+                "TELFAST 120 MG COMP. BT/15",
+                "39750094",
+                "STOCK 3EME ETAGE",
+                null,
+                20.0
+            ],
+            [
+                "TELFAST 120 MG COMP. BT/15",
+                "39750096",
+                "STOCK 3EME ETAGE",
+                null,
+                10.0
+            ]
+        ],
+        "default_parameters_used": {
+            "start_date": "'2000-01-01'",
+            "end_date": "'2100-02-01'",
+            "xp_id": "'%%'"
+        },
+        "status": "success"
+    },
+    "LISTE EMPLACEMENT": {
+        "columns": [
+            "DESIGNATION",
+            "MAGASIN"
+        ],
+        "sample_data": [
+            [
+                "DCB1",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "DCC1",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "DCD1",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUA2",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUA6",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUA7",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUA8",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUB1",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUB7",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUB8",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUC1",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUC2",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUC3",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUC4",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUC5",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUC6",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUC7",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUC8",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUD1",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ],
+            [
+                "STUD2",
+                "PHARMACIE ESPACE DE STOCKAGE"
+            ]
+        ],
+        "default_parameters_used": {
+            "emp": "%%"
+        },
+        "status": "success"
+    },
+    "STOCK EMPLACEMENTS": {
+        "columns": [
+            "EMPLACEMENT",
+            "MAGASIN",
+            "DESIGNATION",
+            "CODE_BARRE_LOT",
+            "QUANTITE"
+        ],
+        "sample_data": [
+            [
+                "BNA1",
+                "PHARMACIE ESPACE DE VENTE",
+                "CIC PERFUSEUR COMPLET STERILE ",
+                "96452011",
+                2.0
+            ],
+            [
+                "BNA1",
+                "PHARMACIE ESPACE DE VENTE",
+                "GENIS SINTOGEL GEL 75 G",
+                "03421002",
+                11.0
+            ],
+            [
+                "BNA2",
+                "PHARMACIE ESPACE DE VENTE",
+                "REGIMA SEMOULE DE MAIS S/G P/800G  ",
+                "01388005",
+                2.0
+            ],
+            [
+                "BNA3",
+                "PHARMACIE ESPACE DE VENTE",
+                "LAIT NURSIE 3 900G ",
+                "97107036",
+                1.0
+            ],
+            [
+                "BNA3",
+                "PHARMACIE ESPACE DE VENTE",
+                "LAIT NURSIE 3 900G ",
+                "97107043",
+                5.0
+            ],
+            [
+                "BNA3",
+                "PHARMACIE ESPACE DE VENTE",
+                "LAIT NURSIE 3 900G ",
+                "97107044",
+                30.0
+            ],
+            [
+                "BNA4",
+                "PHARMACIE ESPACE DE VENTE",
+                "FORTIMAX BANANE 200ML",
+                "94746017",
+                3.0
+            ],
+            [
+                "BNA4",
+                "PHARMACIE ESPACE DE VENTE",
+                "FORTIMAX CHOCOLAT NOISETTE 200ML",
+                "94747019",
+                3.0
+            ],
+            [
+                "BNA4",
+                "PHARMACIE ESPACE DE VENTE",
+                "FORTIMAX FRAISE 200ML",
+                "94748017",
+                2.0
+            ],
+            [
+                "BNA4",
+                "PHARMACIE ESPACE DE VENTE",
+                "FORTIMAX FRUITS DES BOIS 200ML",
+                "94749020",
+                3.0
+            ],
+            [
+                "BNA4",
+                "PHARMACIE ESPACE DE VENTE",
+                "CYBERGENIX MEGA MUSCLES BANANE 650G    ",
+                "98876005",
+                1.0
+            ],
+            [
+                "BNA4",
+                "PHARMACIE ESPACE DE VENTE",
+                "CYBERGENIX MEGA MUSCLES VANILLE 650G    ",
+                "99473005",
+                1.0
+            ],
+            [
+                "BNA5",
+                "PHARMACIE ESPACE DE VENTE",
+                "CYBERGENIX MEGA MUSCLES VANILLE 650G    ",
+                "99473006",
+                2.0
+            ],
+            [
+                "BNB2",
+                "PHARMACIE ESPACE DE VENTE",
+                "BIOMAX SUCRE FRUCTOSE 500G",
+                "90966014",
+                1.0
+            ],
+            [
+                "BNB2",
+                "PHARMACIE ESPACE DE VENTE",
+                "BIOMAX SUCRE FRUCTOSE 500G",
+                "90966015",
+                1.0
+            ],
+            [
+                "BNB2",
+                "PHARMACIE ESPACE DE VENTE",
+                "BIOMAX SUCRE FRUCTOSE 500G",
+                "90966016",
+                3.0
+            ],
+            [
+                "BNB2",
+                "PHARMACIE ESPACE DE VENTE",
+                "BIOMAX SUCRE FRUCTOSE 750G",
+                "90968042",
+                2.0
+            ],
+            [
+                "BNB2",
+                "PHARMACIE ESPACE DE VENTE",
+                "MAGILIGHT SUCRE B/50",
+                "92001032",
+                1.0
+            ],
+            [
+                "BNB2",
+                "PHARMACIE ESPACE DE VENTE",
+                "MAGILIGHT SUCRE B/50",
+                "92001033",
+                3.0
+            ],
+            [
+                "BNB2",
+                "PHARMACIE ESPACE DE VENTE",
+                "MAGILIGHT SUCRE B/50",
+                "92001034",
+                6.0
+            ]
+        ],
+        "default_parameters_used": {
+            "emp": "%%"
+        },
+        "status": "success"
+    }
+}

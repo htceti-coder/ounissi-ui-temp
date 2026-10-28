@@ -1,0 +1,79 @@
+{% extends "base2.html" %}
+{% load custom_filters %}
+
+{% block title %}Mes Congés & Absences{% endblock %}
+
+{% block content %}
+<div class="w3-panel">
+    <div class="page-intro">
+        <div class="page-intro__copy">
+            <h1>Mes Congés & Demandes — {{ logged_data.employee|default:user.username }}</h1>
+            <p>Suivez votre solde de congés acquis, vos jours pris et l'état de validation de vos demandes.</p>
+        </div>
+        <div>
+            {% url 'leave_create' as u_leave_create %}
+            <a href="{{ u_leave_create|default:'/leaves/create/' }}" class="btn btn-primary">
+                <i class="fa fa-calendar-plus-o"></i> Demander un congé
+            </a>
+        </div>
+    </div>
+
+    <div class="form-row mb-3">
+        <div class="col-md-4 mb-2">
+            <div class="card p-3">
+                <small class="text-muted text-uppercase font-weight-bold">Droit annuel</small>
+                <h3 class="mb-0 mt-1">{{ leave_allowance|default:"30" }} jours</h3>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="card p-3">
+                <small class="text-muted text-uppercase font-weight-bold">Jours consommés</small>
+                <h3 class="mb-0 mt-1">{{ leave_taken|default:"0" }} jours</h3>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="card p-3">
+                <small class="text-muted text-uppercase font-weight-bold">Solde restant</small>
+                <h3 class="mb-0 mt-1 text-success">{{ leave_remaining|default:"30" }} jours</h3>
+            </div>
+        </div>
+    </div>
+
+    <table class="filtertable table table-striped">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Début</th>
+                <th>Fin</th>
+                <th>Durée</th>
+                <th>Motif</th>
+                <th>Statut</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for leave in my_leaves %}
+            <tr>
+                <td><strong>{{ leave.get_leave_type_display|default:leave.leave_type }}</strong></td>
+                <td>{{ leave.start_date|date:"d/m/Y" }}</td>
+                <td>{{ leave.end_date|date:"d/m/Y" }}</td>
+                <td>{{ leave.days_count }} j</td>
+                <td>{{ leave.reason|default:"—" }}</td>
+                <td>
+                    {% if leave.status == "APPROVED" or leave.status == 1 %}
+                        <span class="badge badge-success">Approuvé</span>
+                    {% elif leave.status == "REJECTED" or leave.status == 2 %}
+                        <span class="badge badge-danger">Refusé</span>
+                    {% else %}
+                        <span class="badge badge-warning">En attente</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="text-center text-muted">Vous n'avez aucune demande de congé enregistrée.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

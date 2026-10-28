@@ -1,0 +1,117 @@
+{% extends "base2.html" %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}Gestion des Congés & Absences{% endblock %}
+
+{% block content %}
+<div class="w3-panel">
+    <div class="page-intro">
+        <div class="page-intro__copy">
+            <h1>Gestion des Congés & Absences</h1>
+            <p>Suivi des demandes de congés (annuel, maladie, maternité, sans solde, autorisation de sortie) et impact sur le pointage & la paie.</p>
+        </div>
+        <div>
+            {% url 'leave_create' as u_leave_create %}
+            <a href="{{ u_leave_create|default:'/leaves/create/' }}" class="btn btn-primary">
+                <i class="fa fa-plus"></i> Nouvelle demande de congé
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <form method="get" action="" class="mb-3">
+        <div class="form-row align-items-end">
+            <div class="form-group col-md-4">
+                <label for="employee">Employé</label>
+                <select name="employee" id="employee" class="form-control single_select">
+                    <option value="">Tous les employés</option>
+                    {% for emp in employees %}
+                        <option value="{{ emp.id }}" {% if request.GET.employee == emp.id|stringformat:"s" %}selected{% endif %}>{{ emp }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group col-md-3">
+                <label for="leave_type">Type de congé</label>
+                <select name="leave_type" id="leave_type" class="form-control">
+                    <option value="">Tous les types</option>
+                    <option value="ANNUAL" {% if request.GET.leave_type == "ANNUAL" %}selected{% endif %}>Congé annuel payé</option>
+                    <option value="SICK" {% if request.GET.leave_type == "SICK" %}selected{% endif %}>Congé maladie</option>
+                    <option value="MATERNITY" {% if request.GET.leave_type == "MATERNITY" %}selected{% endif %}>Maternité / Paternité</option>
+                    <option value="UNPAID" {% if request.GET.leave_type == "UNPAID" %}selected{% endif %}>Congé sans solde</option>
+                    <option value="PERMISSION" {% if request.GET.leave_type == "PERMISSION" %}selected{% endif %}>Autorisation d'absence</option>
+                </select>
+            </div>
+            <div class="form-group col-md-3">
+                <label for="status">Statut</label>
+                <select name="status" id="status" class="form-control">
+                    <option value="">Tous les statuts</option>
+                    <option value="PENDING" {% if request.GET.status == "PENDING" %}selected{% endif %}>En attente</option>
+                    <option value="APPROVED" {% if request.GET.status == "APPROVED" %}selected{% endif %}>Approuvé</option>
+                    <option value="REJECTED" {% if request.GET.status == "REJECTED" %}selected{% endif %}>Refusé</option>
+                </select>
+            </div>
+            <div class="form-group col-md-2">
+                <button type="submit" class="btn btn-primary btn-block">
+                    <i class="fa fa-filter"></i> Filtrer
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Table DataTables (.filtertable conservée) -->
+    <table class="filtertable table table-striped">
+        <thead>
+            <tr>
+                <th>Employé</th>
+                <th>Type</th>
+                <th>Du</th>
+                <th>Au</th>
+                <th>Jours</th>
+                <th>Motif</th>
+                <th>Statut</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for leave in leaves %}
+            <tr>
+                <td><strong>{{ leave.employee }}</strong></td>
+                <td>{{ leave.get_leave_type_display|default:leave.leave_type }}</td>
+                <td>{{ leave.start_date|date:"d/m/Y" }}</td>
+                <td>{{ leave.end_date|date:"d/m/Y" }}</td>
+                <td><strong>{{ leave.days_count|default:"1" }} j</strong></td>
+                <td>{{ leave.reason|default:"—" }}</td>
+                <td>
+                    {% if leave.status == "APPROVED" or leave.status == 1 %}
+                        <span class="badge badge-success">Approuvé</span>
+                    {% elif leave.status == "REJECTED" or leave.status == 2 %}
+                        <span class="badge badge-danger">Refusé</span>
+                    {% else %}
+                        <span class="badge badge-warning">En attente</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if logged_data.leader or logged_data.group.name == "Admin" %}
+                        <form method="post" action="" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="leave_id" value="{{ leave.id }}">
+                            <button type="submit" name="action" value="approve" class="btn btn-success btn-sm" title="Approuver">
+                                <i class="fa fa-check"></i>
+                            </button>
+                            <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm" title="Refuser">
+                                <i class="fa fa-times"></i>
+                            </button>
+                        </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center text-muted">Aucune demande de congé enregistrée pour ces critères.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

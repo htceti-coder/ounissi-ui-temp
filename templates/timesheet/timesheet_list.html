@@ -1,0 +1,139 @@
+<!-- templates/timesheet_list.html -->
+{% extends "base2.html" %}
+{% load custom_filters %}
+{% load static %}
+{% block title %}Timesheet List{% endblock %}
+
+{% block content %}
+<h2>Liste Pointage</h2>
+
+
+<form method="get" action="">
+    <div class="form-row">
+        <div class="form-group col-md-4">
+            {{ filter_form.start_date.label_tag }}
+            {{ filter_form.start_date }}
+        </div>
+        <div class="form-group col-md-4">
+            {{ filter_form.end_date.label_tag }}
+            {{ filter_form.end_date }}
+        </div>
+        <div class="form-group col-md-4">
+            <label>Employees:</label>
+            {{ filter_form.employees }}
+        </div>
+    </div>
+    <div class="w3-margin-top">
+        <button type="submit" class="w3-button w3-blue w3-round">
+            <i class="fa fa-filter"></i> Filtrer
+        </button>
+        <!-- The export button submitted as part of the GET request parameters -->
+        <button type="submit" name="export" value="excel" class="w3-button w3-green w3-round w3-margin-left">
+            <i class="fa fa-file-excel-o"></i> Exporter Excel
+        </button>
+    </div>
+</form>
+<div class="w3-container w3-margin-top">
+    <div class="w3-row w3-margin-bottom w3-padding-16">
+        <div class="w3-col l6">
+            <h3 class="w3-text-dark-grey"><b>Contrôle des Présences</b></h3>
+        </div>
+        <div class="w3-col l6 w3-right-align">
+            <button id="bulk-btn" onclick="executeBulkValidation()" class="w3-button w3-green w3-round-large w3-card-4">
+                ✅ Valider toute la liste
+            </button>
+        </div>
+    </div>
+
+    <table class="w3-table-all w3-card-4" id="timesheet-table">
+        <thead>
+            <tr class="w3-light-grey w3-small">
+                <th>Employé</th>
+                <th>Date</th>
+                <th colspan="2" class="w3-center w3-border-left">Session 1</th>
+                <th colspan="2" class="w3-center w3-border-left">Session 2</th>
+                <th colspan="2" class="w3-center w3-border-left">Session 3</th>
+                <th class="w3-border-left">Bio Total</th>
+                <th colspan="2" class="w3-center w3-pale-blue w3-border-left">Audit Xpert</th>
+                <!-- Added Congé Header -->
+                <th class="w3-border-left">Congé</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in timesheets_with_hours %}
+            {% if item.is_new_row %}
+                <tr id="row-new-{{ item.obj.employee.id }}-{{ item.obj.date|date:'Y-m-d' }}"
+                    class="{% if item.warning %}w3-pale-red{% endif %}">
+            {% else %}
+                <tr id="row-{{ item.obj.id }}"
+                    class="{% if item.obj.is_confirmed and item.obj.leave_type != 'NONE' %}w3-pale-yellow{% elif item.obj.is_confirmed %}w3-pale-green{% elif item.warning %}w3-pale-red{% endif %}"
+                    title="{% if item.obj.is_confirmed %}Déjà validé{% endif %}">
+            {% endif %}
+
+                <td>
+                    {% if not item.is_new_row and item.obj.is_confirmed %}
+                        <span class="w3-text-green" title="Validé">●</span>
+                    {% endif %}
+                    {{ item.obj.employee }}
+                </td>
+                <td class="w3-center"><b>{{ item.obj.date|short_day_fr }}</b></td>
+
+                <td class="w3-border-left"><input type="time" class="start_time" value="{{ item.obj.start_time|time:'H:i' }}"></td>
+                <td><input type="time" class="end_time" value="{{ item.obj.end_time|time:'H:i' }}"></td>
+
+                <td class="w3-border-left"><input type="time" class="start_time_2" value="{{ item.obj.start_time_2|time:'H:i' }}"></td>
+                <td><input type="time" class="end_time_2" value="{{ item.obj.end_time_2|time:'H:i' }}"></td>
+
+                <td class="w3-border-left"><input type="time" class="start_time_3" value="{{ item.obj.start_time_3|time:'H:i' }}"></td>
+                <td><input type="time" class="end_time_3" value="{{ item.obj.end_time_3|time:'H:i' }}"></td>
+
+                <td class="w3-border-left w3-center">
+                    <span class="w3-tag w3-round {% if not item.is_new_row and item.obj.is_confirmed %}w3-green{% else %}w3-dark-grey{% endif %}">
+                        {{ item.hours|hours_minutes }}
+                    </span>
+                </td>
+
+                <td class="w3-border-left w3-text-blue w3-small">
+                    {{ item.xp_first|default:"--" }} → {{ item.xp_last|default:"--" }}
+                </td>
+                <td class="w3-center">
+                    <b class="{% if item.warning %}w3-text-red{% else %}w3-text-blue{% endif %}">
+                        {{ item.xp_total }}
+                    </b>
+                </td>
+
+                <!-- Added leave_type Dropdown Cell -->
+                <td class="w3-border-left">
+                    <select class="leave_type w3-select w3-border w3-round w3-tiny" style="padding: 2px; width: 100%;">
+                        <option value="NONE" {% if item.obj.leave_type == 'NONE' %}selected{% endif %}>Aucun</option>
+                        <option value="PAID" {% if item.obj.leave_type == 'PAID' %}selected{% endif %}>Congé Payé</option>
+                        <option value="SICK" {% if item.obj.leave_type == 'SICK' %}selected{% endif %}>Congé Maladie</option>
+                        <option value="UNPAID" {% if item.obj.leave_type == 'UNPAID' %}selected{% endif %}>Congé Sans Solde</option>
+                        <option value="OTHER" {% if item.obj.leave_type == 'OTHER' %}selected{% endif %}>Autre</option>
+                    </select>
+                </td>
+
+                <td>
+                    {% if item.is_new_row %}
+                        <button onclick="saveNewSingleLine(this, {{ item.obj.employee.id }}, '{{ item.obj.date|date:'Y-m-d' }}')"
+                                class="w3-button w3-tiny w3-orange w3-round"
+                                id="btn-new-{{ item.obj.employee.id }}-{{ item.obj.date|date:'Y-m-d' }}">💾</button>
+                    {% else %}
+                        <button onclick="saveSingleLine({{ item.obj.id }})"
+                                class="w3-button w3-tiny w3-blue w3-round"
+                                id="btn-{{ item.obj.id }}">💾</button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<script>
+    // Define Django-specific variables for the external JS file
+    const NINJA_API_URL = "{% url 'api-1.0.0:bulk_update_timesheets' %}";
+    const CSRF_TOKEN = "{{ csrf_token }}";
+</script>
+ <script src="{% static 'js/timesheet_ninja.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base2.html" %}
+{% load custom_filters %}
+
+{% block title %}Calendrier & Soldes des Congés{% endblock %}
+
+{% block content %}
+<div class="w3-panel">
+    <div class="page-intro">
+        <div class="page-intro__copy">
+            <h1>Calendrier d'équipe & Soldes des Congés</h1>
+            <p>Vue consolidée des absences approuvées et des soldes par employé pour anticiper la planification des TRT.</p>
+        </div>
+        <span class="page-intro__badge">Planning · Disponibilité</span>
+    </div>
+
+    <table class="filtertable table table-striped">
+        <thead>
+            <tr>
+                <th>Employé</th>
+                <th>Équipe / Rang</th>
+                <th>Droit annuel</th>
+                <th>Congés payés pris</th>
+                <th>Maladie / Sans solde</th>
+                <th>Solde disponible</th>
+                <th>Statut aujourd'hui</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in employee_balances %}
+            <tr>
+                <td><strong>{{ row.employee }}</strong></td>
+                <td>{{ row.employee.rank|default:"—" }}</td>
+                <td>{{ row.allowance|default:"30" }} j</td>
+                <td>{{ row.paid_taken|default:"0" }} j</td>
+                <td>{{ row.unpaid_taken|default:"0" }} j</td>
+                <td><strong>{{ row.remaining|default:"30" }} j</strong></td>
+                <td>
+                    {% if row.on_leave_today %}
+                        <span class="badge badge-warning">En congé</span>
+                    {% else %}
+                        <span class="badge badge-success">Disponible</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            {% for emp in employees %}
+            <tr>
+                <td><strong>{{ emp }}</strong></td>
+                <td>{{ emp.rank|default:"—" }}</td>
+                <td>30 j</td>
+                <td>0 j</td>
+                <td>0 j</td>
+                <td><strong>30 j</strong></td>
+                <td><span class="badge badge-success">Disponible</span></td>
+            </tr>
+            {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

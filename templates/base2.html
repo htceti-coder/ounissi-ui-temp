@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+    {% load static %}
+    {% load custom_filters %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#0a1628">
+    <title>{% block title %}OUNISSI OS{% endblock %}</title>
+
+    <!-- Existing runtime dependencies are deliberately preserved. -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.6.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.20/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="{% static 'css/w3.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.min.css">
+
+    <!-- New UI layer. It is namespaced and does not replace Bootstrap/W3 APIs. -->
+    <link rel="stylesheet" href="{% static 'css/ounissi_v2.css' %}">
+
+    <!-- jQuery stays in the head because a few existing feature templates execute inline AJAX scripts inside content. -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    {% block style %}{% endblock %}
+    {% block head %}{% endblock %}
+</head>
+<body class="ounissi-app" data-app-shell="ounissi-v2">
+    <div id="app-progress" class="app-progress" aria-hidden="true"><span></span></div>
+
+    <a class="skip-link" href="#main-content">Aller au contenu</a>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" aria-hidden="true"></div>
+
+    <aside id="mySidebar" class="app-sidebar" aria-label="Navigation principale">
+        <div class="brand-lockup">
+            <a href="{% url 'home' %}" class="brand-mark" aria-label="OUNISSI OS - Accueil">
+                <span class="brand-letter">O</span>
+                <span class="brand-pulse" aria-hidden="true"></span>
+            </a>
+            <div class="brand-copy">
+                <strong>OUNISSI <span>OS</span></strong>
+                <small>Exploitation pharmaceutique</small>
+            </div>
+            <button type="button" class="icon-button sidebar-close d-lg-none" data-sidebar-close aria-label="Fermer le menu">
+                <i class="fa fa-times" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <div class="live-panel" aria-label="État du système">
+            <div class="live-panel__head">
+                <span><i class="status-dot"></i> Système opérationnel</span>
+                <strong id="sidebar-clock">--:--</strong>
+            </div>
+            <div class="live-panel__meta">
+                <span>TRT & tâches</span>
+                <span>Temps réel</span>
+            </div>
+            <div class="live-panel__bar"><span></span></div>
+        </div>
+
+        {% include 'includes/ounissi_nav.html' %}
+
+        <div class="sidebar-account">
+            {% if user.is_authenticated %}
+                <div class="account-card">
+                    <span class="account-avatar">{{ logged_data.employee|stringformat:"s"|slice:":1"|upper|default:"U" }}</span>
+                    <div class="account-copy">
+                        <strong>{{ logged_data.employee|default:user.username }}</strong>
+                        <small>
+                            {% if logged_data.group.name %}{{ logged_data.group.name }}{% else %}Utilisateur{% endif %}
+                            {% if logged_data.leader %} · Responsable{% endif %}
+                            {% if logged_data.entrance %} · {{ logged_data.entrance }}{% endif %}
+                        </small>
+                    </div>
+                    <span class="online-dot" title="Connecté"></span>
+                </div>
+                <div class="account-actions">
+                    {% if logged_data.group.name == "Admin" %}
+                        <a href="/admin/" class="account-action" title="Administration"><i class="fa fa-cog"></i><span>Admin</span></a>
+                    {% endif %}
+                    <form method="post" action="{% url 'logout' %}" class="account-logout">
+                        {% csrf_token %}
+                        <button type="submit" class="account-action" title="Déconnexion"><i class="fa fa-power-off"></i><span>Quitter</span></button>
+                    </form>
+                </div>
+            {% else %}
+                <a href="{% url 'login' %}" class="login-callout">
+                    <i class="fa fa-sign-in"></i>
+                    <span><strong>Se connecter</strong><small>Accéder à OUNISSI OS</small></span>
+                </a>
+            {% endif %}
+        </div>
+    </aside>
+
+    <div class="app-stage">
+        <header class="app-topbar">
+            <div class="topbar-primary">
+                <button type="button" class="icon-button sidebar-toggle" data-sidebar-open aria-label="Ouvrir le menu">
+                    <i class="fa fa-bars" aria-hidden="true"></i>
+                </button>
+
+                <div class="page-identity">
+                    <span class="page-kicker" id="page-kicker">OUNISSI OS</span>
+                    <h1 id="app-page-title">Espace de travail</h1>
+                </div>
+
+                <div class="topbar-tools">
+                    <button type="button" class="command-trigger" data-command-open aria-label="Ouvrir la navigation rapide">
+                        <i class="fa fa-search"></i>
+                        <span>Rechercher une page...</span>
+                        <kbd>Ctrl K</kbd>
+                    </button>
+                    <button type="button" class="icon-button" data-theme-toggle title="Changer le thème" aria-label="Changer le thème">
+                        <i class="fa fa-moon-o" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="icon-button notification-button" data-notifications-toggle title="Activité" aria-label="Afficher l'activité">
+                        <i class="fa fa-bell-o" aria-hidden="true"></i>
+                        <span class="notification-dot"></span>
+                    </button>
+                    <div class="clock-card" aria-label="Date et heure">
+                        <i class="fa fa-clock-o"></i>
+                        <div><strong id="topbar-clock">--:--:--</strong><small id="topbar-date">--</small></div>
+                    </div>
+                    <div class="legacy-navbar-slot">{% block navbar_right %}{% endblock %}</div>
+                </div>
+            </div>
+
+            <div class="activity-rail" aria-label="Informations système">
+                <span class="activity-rail__label"><i class="status-dot"></i> LIVE</span>
+                <div class="activity-rail__viewport">
+                    <div class="activity-rail__track">
+                        <span><b>TRT</b> Planification, suivi et clôture</span>
+                        <span><b>Réception</b> Réception → Saisie → Produit → Vignette → Placement</span>
+                        <span><b>Pointage</b> Import ZKTeco et calcul des heures</span>
+                        <span><b>Paie</b> Gains, retenues et détails salaire</span>
+                        <span><b>Stocks</b> État et assignation des emplacements</span>
+                        <span><b>Xpertpharm</b> Requêtes paramétrées</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main id="main-content" class="app-main" tabindex="-1">
+            {% if messages %}
+                <div class="django-messages" aria-live="polite">
+                    {% for message in messages %}
+                        <div class="app-alert app-alert--{{ message.tags|default:'info' }}" role="alert">
+                            <i class="fa {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %}"></i>
+                            <span>{{ message }}</span>
+                            <button type="button" data-alert-close aria-label="Fermer">&times;</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="content-surface" data-page-content>
+                {% block content %}{% endblock %}
+            </div>
+
+            <footer class="app-footer">
+                <span>OUNISSI OS · Plateforme d'exploitation</span>
+                <span><i class="status-dot"></i> Django · HTML · CSS · JavaScript</span>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Existing generic modal remains available to every feature template. -->
+    {% include 'modal_popup.html' %}
+
+    <!-- Loading API kept globally: create_schedule.js calls showLoadingContainer()/hideLoadingContainer(). -->
+    <div id="loading-container" class="loading-container hidden" role="status" aria-live="polite" aria-label="Chargement">
+        <div class="loading-dialog">
+            <div class="loading-spinner"></div>
+            <strong>Traitement en cours</strong>
+            <span>Veuillez patienter...</span>
+        </div>
+    </div>
+
+    <!-- Keyboard command palette: progressive enhancement only. -->
+    <div id="command-palette" class="command-palette" aria-hidden="true">
+        <div class="command-backdrop" data-command-close></div>
+        <section class="command-dialog" role="dialog" aria-modal="true" aria-labelledby="command-title">
+            <div class="command-search">
+                <i class="fa fa-search"></i>
+                <input id="command-input" type="search" autocomplete="off" placeholder="Rechercher dans le menu..." aria-label="Rechercher une page">
+                <kbd>Esc</kbd>
+            </div>
+            <div class="command-heading" id="command-title">Navigation rapide</div>
+            <div id="command-results" class="command-results"></div>
+            <div class="command-help"><span>↑ ↓ naviguer</span><span>↵ ouvrir</span><span>Esc fermer</span></div>
+        </section>
+    </div>
+
+    <div id="app-toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Existing dependency order is preserved for Bootstrap, Chosen and DataTables. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.9.3/umd/popper.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.6.0/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.jquery.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
+
+    <!-- Existing global utility functions used by special reception forms. -->
+    <script src="{% static 'js/js_utils.js' %}"></script>
+
+    <!-- New progressive UI behavior. It never renames/removes existing IDs or handlers. -->
+    <script src="{% static 'js/ounissi_ui.js' %}"></script>
+
+    <!-- Every existing page-level script remains in its original block and executes unchanged. -->
+    {% block scripts %}{% endblock %}
+</body>
+</html>

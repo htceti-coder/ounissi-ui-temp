@@ -1,0 +1,75 @@
+{% extends "base2.html" %}
+{% load custom_filters %}
+
+{% block title %}Mon Pointage{% endblock %}
+
+{% block content %}
+<div class="w3-panel">
+    <div class="page-intro">
+        <div class="page-intro__copy">
+            <h1>Mon Pointage — {{ logged_data.employee|default:user.username }}</h1>
+            <p>Consultez vos entrées/sorties enregistrées (3 créneaux possibles par jour) et l'état de validation RH.</p>
+        </div>
+        <span class="page-intro__badge">Espace Employé</span>
+    </div>
+
+    <form method="get" class="mb-3">
+        <div class="form-row align-items-end">
+            <div class="form-group col-md-4">
+                <label for="month">Mois</label>
+                <input type="month" id="month" name="month" class="form-control" value="{{ request.GET.month }}">
+            </div>
+            <div class="form-group col-md-3">
+                <button type="submit" class="btn btn-primary"><i class="fa fa-filter"></i> Filtrer</button>
+            </div>
+        </div>
+    </form>
+
+    <table class="filtertable table table-striped">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Créneau 1</th>
+                <th>Créneau 2</th>
+                <th>Créneau 3</th>
+                <th>Heures travaillées</th>
+                <th>Statut</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ts in timesheets %}
+            <tr>
+                <td><strong>{{ ts.date|date:"d/m/Y" }}</strong></td>
+                <td>{{ ts.start_time|time:"H:i"|default:"--" }} → {{ ts.end_time|time:"H:i"|default:"--" }}</td>
+                <td>
+                    {% if ts.start_time_2 %}
+                        {{ ts.start_time_2|time:"H:i" }} → {{ ts.end_time_2|time:"H:i"|default:"--" }}
+                    {% else %}
+                        --
+                    {% endif %}
+                </td>
+                <td>
+                    {% if ts.start_time_3 %}
+                        {{ ts.start_time_3|time:"H:i" }} → {{ ts.end_time_3|time:"H:i"|default:"--" }}
+                    {% else %}
+                        --
+                    {% endif %}
+                </td>
+                <td><strong>{{ ts.calculate_working_hours|floatformat:2 }} h</strong></td>
+                <td>
+                    {% if ts.is_confirmed %}
+                        <span class="badge badge-success">Confirmé</span>
+                    {% else %}
+                        <span class="badge badge-warning">En attente</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="text-center text-muted">Aucun pointage enregistré pour cette période.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

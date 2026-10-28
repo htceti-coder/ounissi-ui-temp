@@ -1,0 +1,128 @@
+{% extends "base2.html" %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="w3-container w3-margin-top">
+    <h2><b>Gestion Centralisée des Congés</b></h2>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="w3-panel {% if message.tags == 'success' %}w3-green{% else %}w3-red{% endif %} w3-round w3-padding">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- 1. Leave Balances Summary Card -->
+    <div class="w3-card-4 w3-white w3-round w3-margin-bottom">
+        <header class="w3-container w3-light-grey w3-padding">
+            <h4><b>📊 Synthèse des Soldes Employés</b></h4>
+        </header>
+        <div class="w3-container w3-padding-16 w3-responsive">
+            <table class="w3-table-all w3-hoverable">
+                <thead>
+                    <tr class="w3-light-grey">
+                        <th>Employé</th>
+                        <th class="w3-center">Solde Initial</th>
+                        <th class="w3-center">Congés Acquis</th>
+                        <th class="w3-center">Congés Pris (Validés)</th>
+                        <th class="w3-center">Demandes En attente</th>
+                        <th class="w3-center">Solde Disponible</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in employee_balances %}
+                    <tr>
+                        <td><b>{{ item.employee }}</b></td>
+                        <td class="w3-center">{{ item.balance.starting }} j</td>
+                        <td class="w3-center w3-text-teal">+ {{ item.balance.accrued }} j</td>
+                        <td class="w3-center w3-text-red">- {{ item.balance.taken }} j</td>
+                        <td class="w3-center w3-text-orange">- {{ item.balance.pending }} j</td>
+                        <td class="w3-center">
+                            <!-- Display negative balances safely in red if needed -->
+                            <span class="w3-tag {% if item.balance.available < 0 %}w3-red{% else %}w3-green{% endif %} w3-round">
+                                {{ item.balance.available }} j
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 2. Grouped Leave Periods & Requests Panel -->
+    <div class="w3-card-4 w3-white w3-round">
+        <header class="w3-container w3-light-grey w3-padding">
+            <h4><b>📅 Historique & Demandes de Congés</b></h4>
+        </header>
+        <div class="w3-container w3-padding-16">
+            {% if leave_periods %}
+                <form method="post" action="">
+                    {% csrf_token %}
+                    <div class="w3-responsive">
+                        <table class="w3-table-all w3-hoverable">
+                            <thead>
+                                <tr class="w3-light-grey">
+                                    <th style="width: 50px;" class="w3-center">
+                                        <input type="checkbox" id="select-all" class="w3-check" onclick="toggleSelectAll(this)">
+                                    </th>
+                                    <th>Employé</th>
+                                    <th>Type de Congé</th>
+                                    <th class="w3-center">Période</th>
+                                    <th class="w3-center">Durée</th>
+                                    <th class="w3-center">Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for period in leave_periods %}
+                                <tr class="{% if period.is_confirmed %}w3-pale-green{% else %}w3-pale-yellow{% endif %}">
+                                    <td class="w3-center">
+                                        <!-- Value maps a comma-separated string list of actual database IDs -->
+                                        <input type="checkbox" name="timesheet_ids" value="{{ period.ids|join:',' }}" class="w3-check leave-checkbox">
+                                    </td>
+                                    <td>{{ period.employee }}</td>
+                                    <td><span class="w3-tag w3-amber w3-round">{{ period.leave_type_display }}</span></td>
+                                    <td class="w3-center">
+                                        Du <b>{{ period.start_date|date:"d/m/Y" }}</b> au <b>{{ period.end_date|date:"d/m/Y" }}</b>
+                                    </td>
+                                    <td class="w3-center"><b>{{ period.num_days }} jours</b></td>
+                                    <td class="w3-center">
+                                        {% if period.is_confirmed %}
+                                            <span class="w3-text-green"><b><i class="fa fa-check"></i> Validé</b></span>
+                                        {% else %}
+                                            <span class="w3-text-orange"><b><i class="fa fa-clock-o"></i> En attente</b></span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="w3-margin-top">
+                        <button type="submit" name="action" value="approve" class="w3-button w3-green w3-round">
+                            ✅ Approuver la sélection
+                        </button>
+                        <button type="submit" name="action" value="reject" class="w3-button w3-red w3-round w3-margin-left">
+                            ❌ Refuser / Annuler la sélection
+                        </button>
+                    </div>
+                </form>
+            {% else %}
+                <p class="w3-text-grey w3-center">Aucun enregistrement de congé répertorié.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Selects/deselects all checkboxes at once
+function toggleSelectAll(masterCheckbox) {
+    const checkboxes = document.querySelectorAll('.leave-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = masterCheckbox.checked;
+    });
+}
+</script>
+{% endblock %}
