@@ -92,11 +92,6 @@
                 </div>
 
                 <div class="topbar-tools">
-                    <button type="button" class="command-trigger" data-command-open aria-label="Ouvrir la navigation rapide">
-                        <i class="fa fa-search"></i>
-                        <span>Rechercher une page...</span>
-                        <kbd>Ctrl K</kbd>
-                    </button>
                     <button type="button" class="icon-button" data-theme-toggle title="Changer le thème" aria-label="Changer le thème">
                         <i class="fa fa-moon-o" aria-hidden="true"></i>
                     </button>
@@ -144,21 +139,6 @@
             <strong>Traitement en cours</strong>
             <span>Veuillez patienter...</span>
         </div>
-    </div>
-
-    <!-- Keyboard command palette: progressive enhancement only. -->
-    <div id="command-palette" class="command-palette" aria-hidden="true">
-        <div class="command-backdrop" data-command-close></div>
-        <section class="command-dialog" role="dialog" aria-modal="true" aria-labelledby="command-title">
-            <div class="command-search">
-                <i class="fa fa-search"></i>
-                <input id="command-input" type="search" autocomplete="off" placeholder="Rechercher dans le menu..." aria-label="Rechercher une page">
-                <kbd>Esc</kbd>
-            </div>
-            <div class="command-heading" id="command-title">Navigation rapide</div>
-            <div id="command-results" class="command-results"></div>
-            <div class="command-help"><span>↑ ↓ naviguer</span><span>↵ ouvrir</span><span>Esc fermer</span></div>
-        </section>
     </div>
 
     <div id="app-toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>

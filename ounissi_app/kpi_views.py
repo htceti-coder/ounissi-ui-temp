@@ -70,11 +70,11 @@ def configure_kpis(request):
 @never_cache
 def kpi_dashboard(request):
     try:
-        month = kpi_service.parse_month(request.GET.get('month'))
+        period = kpi_service.parse_period(request.GET)
     except ValueError as exc:
         return HttpResponseBadRequest(str(exc))
     return render(request, 'kpis/dashboard.html', {
-        'kpi_snapshot': kpi_service.snapshot(request.user, 'dashboard', month),
+        'kpi_snapshot': kpi_service.snapshot(request.user, 'dashboard', period),
         'logged_data': getLoggedData(request),
     })
 
@@ -85,12 +85,14 @@ def kpi_dashboard(request):
 def kpi_snapshot(request):
     surface = request.GET.get('surface', 'live')
     try:
-        month = kpi_service.parse_month(request.GET.get('month'))
-        data = kpi_service.snapshot(request.user, surface, month)
+        period = kpi_service.parse_period(request.GET)
+        data = kpi_service.snapshot(request.user, surface, period)
     except ValueError as exc:
         return HttpResponseBadRequest(str(exc))
     # Cards are rendered/escaped server-side, so the polling client need not
     # construct HTML from employee names or task data.
     html = render_to_string('kpis/_cards.html', {'kpi_snapshot': data}, request=request)
     return JsonResponse({'html': html, 'card_count': len(data['cards']), 'read_at': data['read_at'],
+                         'period': {'mode': period.mode, 'day': period.day_value, 'month': period.month_value,
+                                    'label': period.label},
                          'schedule_id': data['schedule_id'], 'tasks': data['tasks']})

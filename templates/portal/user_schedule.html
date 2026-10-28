@@ -6,7 +6,7 @@
 {% block content%}
 
 {% include 'kpis/_panel.html' %}
-<p class="app-alert app-alert--info" data-live-assignment-change role="status" hidden>Les affectations ou le TRT ont changé. <a href="{% url 'home' %}">Actualiser la page</a> pour voir les tâches à jour.</p>
+<p class="app-alert app-alert--info" data-live-assignment-change role="status" hidden>Les affectations ou le TRT ont changé. <a href="{% url 'home' %}?period={{ kpi_snapshot.period.mode }}{% if not kpi_snapshot.period.automatic %}&amp;day={{ kpi_snapshot.period.day_value }}&amp;month={{ kpi_snapshot.period.month_value }}{% endif %}">Actualiser la page</a> pour voir les tâches à jour.</p>
 
 
   <div class="w3-panel">

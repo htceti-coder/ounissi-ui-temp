@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from accounts.models import Employee, Rank, Team
 from .kpi_scoring import summarize_items
-from .kpi_service import parse_month, snapshot
+from .kpi_service import _team_records, parse_day, parse_month, parse_period, snapshot
 from .models import KPIDisplaySetting, Query, Schedule, ScheduleEmployee, ScheduleItem, Task, Timesheet
 
 
@@ -88,8 +88,10 @@ class KPITests(TestCase):
     def setUp(self):
         self.client.force_login(self.worker_user)
 
-    def cards(self, user=None, surface='dashboard', month=None):
-        data = snapshot(user or self.worker_user, surface, month=month)
+    def cards(self, user=None, surface='dashboard', month=None, period=None):
+        if month:
+            period = parse_period({'period': 'month', 'month': f'{month.year:04d}-{month.month:02d}'})
+        data = snapshot(user or self.worker_user, surface, period=period)
         return {card['key']: card for card in data['cards']}
 
     def test_priority_weighted_score_and_saved_line_duration(self):
@@ -102,7 +104,7 @@ class KPITests(TestCase):
         self.assertEqual(result.completed_count, 2)
         cards = self.cards()
         self.assertEqual(cards['my_progress']['value'], '100')
-        self.assertEqual(cards['my_progress']['detail'], '545 / 545 points · TRT du jour')
+        self.assertEqual(cards['my_progress']['detail'], '545 / 545 points · période sélectionnée')
         self.assertEqual(cards['my_score']['value'], '545')
         self.assertEqual(cards['my_tasks']['value'], '2 / 2')
         self.assertEqual(cards['my_assigned']['value'], '9 min 55 s')
@@ -186,9 +188,9 @@ class KPITests(TestCase):
                                     assigned_time=timedelta(seconds=10000), progression_rate=0)
         cards = self.cards()
         self.assertEqual(cards['my_progress']['value'], '88,37')
-        self.assertEqual(cards['my_progress']['detail'], '570 / 645 points · TRT du jour')
+        self.assertEqual(cards['my_progress']['detail'], '570 / 645 points · période sélectionnée')
         self.assertEqual(cards['my_tasks']['value'], '2 / 4')
-        self.assertEqual(self.cards(self.leader_user)['team_progress']['detail'], '572,5 / 650 points · TRT du jour')
+        self.assertEqual(self.cards(self.leader_user)['team_progress']['detail'], '572,5 / 650 points · période sélectionnée')
         live = snapshot(self.worker_user, 'live')
         self.assertEqual({task['id'] for task in live['tasks']}, {self.manual_item.pk, self.auto_item.pk})
         self.assertNotIn(earlier.pk, [task['id'] for task in live['tasks']])
@@ -198,7 +200,7 @@ class KPITests(TestCase):
         cards = self.cards(self.leader_user)
         self.assertEqual(cards['team_score']['value'], '547,5')  # 545 + (20 × 50% / 4)
         self.assertEqual(cards['team_progress']['value'], '99,55')
-        self.assertEqual(cards['team_progress']['detail'], '547,5 / 550 points · TRT du jour')
+        self.assertEqual(cards['team_progress']['detail'], '547,5 / 550 points · période sélectionnée')
         self.assertEqual(cards['team_tasks']['value'], '2 / 3')
         self.assertEqual(cards['team_presence']['value'], '1')
         rows = cards['team_records']['rows']
@@ -224,7 +226,7 @@ class KPITests(TestCase):
         self.assertNotIn('team_progress', worker)
 
     def test_monthly_confirmed_days_hours_pending_and_future(self):
-        cards = self.cards()
+        cards = self.cards(month=date(2026, 10, 1))
         self.assertEqual(cards['attendance_days']['value'], '2')
         self.assertEqual(cards['attendance_hours']['value'], '11 h')
         self.assertIn('1 pointage(s)', cards['attendance_hours']['warning'])
@@ -243,7 +245,7 @@ class KPITests(TestCase):
     def test_overlapping_and_out_of_order_punches_are_not_double_counted(self):
         Timesheet.objects.create(employee=self.worker, date=date(2026, 10, 9), is_confirmed=True,
                                  start_time=time(8), end_time=time(12), start_time_2=time(11), end_time_2=time(15))
-        cards = self.cards()
+        cards = self.cards(month=date(2026, 10, 1))
         self.assertEqual(cards['attendance_days']['value'], '3')
         self.assertEqual(cards['attendance_hours']['value'], '15 h')  # 11 + the safe 08:00–12:00 prefix
         self.assertIn('2 pointage(s)', cards['attendance_hours']['warning'])
@@ -253,7 +255,7 @@ class KPITests(TestCase):
 
     def test_confirmed_record_without_punches_is_flagged_as_unknown(self):
         Timesheet.objects.create(employee=self.worker, date=date(2026, 10, 9), is_confirmed=True)
-        cards = self.cards()
+        cards = self.cards(month=date(2026, 10, 1))
         self.assertEqual(cards['attendance_days']['value'], '2')
         self.assertIn('2 pointage(s)', cards['attendance_days']['warning'])
         self.assertIn('2 pointage(s)', cards['attendance_hours']['warning'])
@@ -373,6 +375,146 @@ class KPITests(TestCase):
         self.client.logout()
         self.assertEqual(self.client.get(reverse('kpi_snapshot')).status_code, 302)
         self.assertEqual(self.client.get(reverse('kpi_dashboard')).status_code, 302)
+
+
+    def test_default_day_month_switcher_and_saved_only_scoped_groups(self):
+        # Both surfaces default to the current day; switching to month defaults
+        # to the current month. No session/global date is shared between users.
+        for name in ('home', 'kpi_dashboard'):
+            response = self.client.get(reverse(name))
+            self.assertContains(response, 'data-kpi-period="day"')
+            self.assertContains(response, 'data-kpi-day="2026-10-28"')
+            self.assertContains(response, 'data-kpi-automatic="1"')
+            self.assertContains(response, 'type="date" name="day"')
+            self.assertContains(response, 'data-kpi-group="personal"')
+            self.assertNotContains(response, 'data-kpi-group="team"')
+            self.assertNotContains(response, 'data-command-open')
+            self.assertNotContains(response, 'command-palette')
+            month = self.client.get(reverse(name), {'period': 'month'})
+            self.assertContains(month, 'data-kpi-period="month"')
+            self.assertContains(month, 'data-kpi-month="2026-10"')
+            self.assertContains(month, 'data-kpi-automatic="1"')
+            self.assertContains(month, 'type="month" name="month"')
+        self.client.force_login(self.leader_user)
+        for name in ('home', 'kpi_dashboard'):
+            response = self.client.get(reverse(name))
+            html = response.content.decode()
+            self.assertLess(html.index('data-kpi-group="personal"'), html.index('data-kpi-group="team"'))
+            self.assertContains(response, 'Membres actuellement rattachés à votre équipe')
+        self.client.force_login(self.worker_user)
+        response = self.client.get(reverse('kpi_dashboard'), {'period': 'month', 'month': '2026-10'})
+        self.assertEqual(response.context['kpi_snapshot']['period'].label, 'Mois : 10/2026')
+        cards = {card['key']: card for card in response.context['kpi_snapshot']['cards']}
+        self.assertEqual(cards['my_progress']['detail'], '545 / 5 545 points · période sélectionnée')
+        self.assertEqual(cards['my_progress']['value'], '9,83')
+        self.assertEqual(cards['my_tasks']['value'], '2 / 3')
+        self.assertEqual(cards['attendance_days']['value'], '2')
+        self.assertEqual(cards['attendance_hours']['value'], '11 h')
+
+    def test_selected_historical_day_filters_every_kpi_but_not_the_active_task_table(self):
+        selected = {'period': 'day', 'day': '2026-10-05'}
+        historic = Schedule.objects.create(date=date(2026, 10, 5), start_time=time(8), end_time=time(17))
+        item = ScheduleItem.objects.create(schedule=historic, employee=self.worker, task=self.manual,
+                                           assigned_time=timedelta(seconds=200), progression_rate=50)
+        day = parse_period(selected)
+        cards = self.cards(period=day)
+        self.assertEqual((cards['my_score']['value'], cards['my_progress']['value']), ('50', '50'))
+        self.assertEqual(cards['my_tasks']['value'], '0 / 1')
+        self.assertEqual(cards['attendance_days']['value'], '1')
+        self.assertEqual(cards['attendance_hours']['value'], '8 h')
+        self.assertEqual(len(cards['attendance_records']['rows']), 1)
+        with patch('ounissi_app.schedule_service.run_raw_query') as xpert, \
+             patch('ounissi_app.views.import_attendance_and_users') as terminal, \
+             CaptureQueriesContext(connection) as queries:
+            response = self.client.get(reverse('kpi_snapshot'), {'surface': 'live', **selected})
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['period']['day'], '2026-10-05')
+        self.assertEqual({task['id'] for task in payload['tasks']}, {self.manual_item.pk, self.auto_item.pk})
+        self.assertNotIn(item.pk, [task['id'] for task in payload['tasks']])
+        self.assertIn('50 / 100 points', payload['html'])
+        self.assertFalse(any(q['sql'].lstrip().upper().startswith(('INSERT', 'UPDATE', 'DELETE')) for q in queries.captured_queries))
+        xpert.assert_not_called(); terminal.assert_not_called()
+        home = self.client.get(reverse('home'), selected)
+        self.assertContains(home, 'data-kpi-day="2026-10-05"')
+        self.assertContains(home, f'data-live-task-id="{self.auto_item.pk}"')
+        self.assertNotContains(home, f'data-live-task-id="{item.pk}"')
+        self.assertContains(home, 'period=day&amp;day=2026-10-05&amp;month=2026-10')
+
+    def test_historical_month_team_uses_all_records_without_claiming_current_presence(self):
+        past = Schedule.objects.create(date=date(2026, 9, 5), start_time=time(0), end_time=time(23, 59))
+        ScheduleItem.objects.create(schedule=past, employee=self.worker, task=self.manual,
+                                    assigned_time=timedelta(seconds=100), progression_rate=50)
+        ScheduleItem.objects.create(schedule=past, employee=self.outside, task=self.manual,
+                                    assigned_time=timedelta(seconds=10000), progression_rate=100)
+        Timesheet.objects.create(employee=self.worker, date=date(2026, 9, 6), start_time=time(8))
+        Timesheet.objects.create(employee=self.outside, date=date(2026, 9, 6), start_time=time(8))
+        period = parse_period({'period': 'month', 'month': '2026-09'})
+        cards = self.cards(self.leader_user, period=period)
+        self.assertEqual(cards['team_score']['value'], '25')  # other team's 5000 points excluded
+        self.assertEqual(cards['team_progress']['value'], '50')
+        self.assertEqual(cards['team_presence']['value'], '1')
+        self.assertIn('Sur 2 enregistrement(s)', cards['team_presence']['detail'])
+        self.assertIn('pas une présence en direct', cards['team_presence']['warning'])
+        records = cards['team_records']
+        self.assertIn('2 enregistrement(s)', records['detail'])
+        alice = next(row for row in records['rows'] if row['primary'] == 'Alice Membre')
+        self.assertEqual(alice['status'], '2 enregistrement(s)')
+        self.assertIn('1 ouvert(s)', alice['secondary'])
+        self.assertIn('1 clôturé(s)', alice['secondary'])
+        leader = next(row for row in records['rows'] if row['primary'] == 'Lina Responsable')
+        self.assertEqual(leader['status'], 'État inconnu')
+        self.client.force_login(self.leader_user)
+        with patch('ounissi_app.schedule_service.run_raw_query') as xpert, \
+             patch('ounissi_app.views.import_attendance_and_users') as terminal, \
+             CaptureQueriesContext(connection) as queries:
+            response = self.client.get(reverse('kpi_snapshot'), {'surface': 'dashboard', 'period': 'month', 'month': '2026-09', 'employee': self.outside.pk})
+        self.assertFalse(any(q['sql'].lstrip().upper().startswith(('INSERT', 'UPDATE', 'DELETE')) for q in queries.captured_queries))
+        xpert.assert_not_called(); terminal.assert_not_called()
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('Confidentiel', response.json()['html'])
+        self.assertIn('2 enregistrement(s)', response.json()['html'])
+        empty = self.cards(self.leader_user, month=date(2025, 1, 1))
+        self.assertEqual(empty['team_presence']['value'], '—')
+        self.assertIn('absence ne peut pas être déduite', empty['team_presence']['detail'])
+        self.assertTrue(all(row['status'] == 'État inconnu' for row in empty['team_records']['rows']))
+
+    def test_team_record_aggregation_ignores_records_outside_captured_roster(self):
+        # Covers a membership change between the roster and record queries.
+        records = list(Timesheet.objects.filter(date=date(2026, 10, 28)))
+        rows, counts = _team_records([self.worker, self.leader], records, 'month')
+        self.assertEqual(counts['record_total'], 1)
+        self.assertEqual(counts['open'], 1)
+        self.assertEqual({row['primary'] for row in rows}, {'Alice Membre', 'Lina Responsable'})
+
+    def test_period_validation_dates_leap_year_and_legacy_month_links(self):
+        self.assertEqual(parse_day('2024-02-29'), date(2024, 2, 29))
+        self.assertEqual(parse_period({'month': '2024-02'}).end, date(2024, 2, 29))
+        self.assertEqual(parse_period({'period': 'month', 'month': '0001-01'}).month_value, '0001-01')
+        self.assertEqual(parse_period({'period': 'day', 'day': '0001-01-01'}).day_value, '0001-01-01')
+        # Invalid inactive values do not prevent changing modes; the active one is strict.
+        self.assertEqual(parse_period({'period': 'month', 'month': '2026-09', 'day': 'bad'}).day, date(2026, 10, 28))
+        for name in ('home', 'kpi_dashboard', 'kpi_snapshot'):
+            for params in ({'period': 'day', 'day': '2026-02-30'}, {'period': 'day', 'day': '0000-01-01'},
+                           {'period': 'day', 'day': '2026-1-01'}, {'period': 'month', 'month': '2026-13'},
+                           {'period': 'year'}):
+                with self.subTest(name=name, params=params):
+                    self.assertEqual(self.client.get(reverse(name), params).status_code, 400)
+
+    def test_group_order_does_not_change_permissions_or_within_group_configuration(self):
+        KPIDisplaySetting.objects.create(role='leader', metric_key='team_tasks', show_live=True,
+                                         show_dashboard=True, presentation='value', position=0)
+        KPIDisplaySetting.objects.create(role='leader', metric_key='my_tasks', show_live=True,
+                                         show_dashboard=True, presentation='value', position=1)
+        data = snapshot(self.leader_user, 'dashboard')
+        self.assertEqual([group['key'] for group in data['groups']], ['personal', 'team'])
+        self.assertEqual(data['groups'][0]['cards'][0]['key'], 'my_tasks')
+        self.assertEqual(data['groups'][1]['cards'][0]['key'], 'team_tasks')
+        KPIDisplaySetting.objects.create(role='user', metric_key='team_records', show_live=True,
+                                         show_dashboard=True, presentation='details', position=0)
+        worker = snapshot(self.worker_user, 'dashboard')
+        self.assertEqual([group['key'] for group in worker['groups']], ['personal'])
+        self.assertNotIn('team_records', [card['key'] for card in worker['cards']])
 
 
 class KPISettingsTests(TestCase):

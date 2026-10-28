@@ -6,16 +6,11 @@
   <div>
     <p class="settings-eyebrow">Mon espace</p>
     <h1>Mes indicateurs</h1>
-    <p>Tâches de tous les TRT du jour et pointages enregistrés. Les indicateurs d’équipe concernent uniquement l’équipe que vous dirigez.</p>
+    <p>Tâches et pointages enregistrés pour le jour ou le mois choisi. Les indicateurs d’équipe concernent uniquement l’équipe que vous dirigez.</p>
   </div>
-  <a class="btn btn-outline-secondary" href="{% url 'home' %}">Retour au TRT actif</a>
+  <a class="btn btn-outline-secondary" href="{% url 'home' %}?period={{ kpi_snapshot.period.mode }}{% if not kpi_snapshot.period.automatic %}&amp;day={{ kpi_snapshot.period.day_value }}&amp;month={{ kpi_snapshot.period.month_value }}{% endif %}">Retour au TRT actif</a>
 </header>
-<form method="get" class="kpi-month-filter">
-  <label for="kpi-month">Mois du pointage</label>
-  <input id="kpi-month" type="month" name="month" min="0001-01" max="9999-12" value="{{ kpi_snapshot.month }}" required>
-  <button type="submit" class="btn btn-primary">Afficher</button>
-</form>
-<p class="kpi-page-note">Le mois filtre les pointages personnels uniquement. Les tâches et les pointages d’équipe concernent aujourd’hui. Les données absentes ne sont pas considérées comme des absences.</p>
+<p class="kpi-page-note">Les données absentes ne sont pas considérées comme des absences ; le tableau des tâches à l’accueil reste celui du TRT actif.</p>
 {% include 'kpis/_panel.html' %}
 {% endblock %}
 {% block scripts %}<script src="{% static 'js/kpi_live.js' %}"></script>{% endblock %}

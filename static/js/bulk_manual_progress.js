@@ -103,7 +103,7 @@
                 if (!/^\d{1,3}$/.test(value) || Number(value) > 100) {
                     event.preventDefault();
                     input.setAttribute('aria-invalid', 'true');
-                    error.textContent = 'Indiquez un pourcentage entier entre 0 et 100 pour chaque tâche sélectionnée.';
+                    error.textContent = 'Choisissez une progression valide pour chaque tâche sélectionnée.';
                     error.hidden = false;
                     if (input.isConnected) input.focus();
                     else if (error.scrollIntoView) error.scrollIntoView({block: 'nearest'});

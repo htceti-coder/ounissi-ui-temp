@@ -11,7 +11,15 @@
   <td>
     {% if can_manage_trt %}
       <label class="sr-only" for="manual-rate-{{ schedule_item.id }}">Progression de {{ schedule_item.task }} pour {{ schedule_item.employee }}</label>
-      <input id="manual-rate-{{ schedule_item.id }}" class="manual-progress-rate" type="number" min="0" max="100" step="1" inputmode="numeric" name="rate_{{ schedule_item.id }}" value="{{ schedule_item.progression_rate|default_if_none:0 }}" form="manual-progress-form" data-manual-rate> <span aria-hidden="true">%</span>
+      {% with rate=schedule_item.progression_rate|default_if_none:0 %}
+      <select id="manual-rate-{{ schedule_item.id }}" class="manual-progress-rate" name="rate_{{ schedule_item.id }}" form="manual-progress-form" data-manual-rate>
+        {% if rate != 0 and rate != 25 and rate != 50 and rate != 100 %}<option value="{{ rate }}" selected>{{ rate }} % (enregistré)</option>{% endif %}
+        <option value="0"{% if rate == 0 %} selected{% endif %}>0 %</option>
+        <option value="25"{% if rate == 25 %} selected{% endif %}>25 %</option>
+        <option value="50"{% if rate == 50 %} selected{% endif %}>50 %</option>
+        <option value="100"{% if rate == 100 %} selected{% endif %}>100 %</option>
+      </select>
+      {% endwith %}
     {% else %}
       {{ schedule_item.progression_rate|default_if_none:0 }} %
     {% endif %}

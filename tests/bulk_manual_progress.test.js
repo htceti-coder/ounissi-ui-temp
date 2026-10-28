@@ -109,7 +109,7 @@ ui.first.rate.value = '';
 ui.first.rate.isConnected = false;
 const invalid = ui.submit();
 assert.equal(invalid.defaultPrevented, true);
-assert.match(ui.error.textContent, /entier entre 0 et 100/);
+assert.match(ui.error.textContent, /progression valide/);
 assert.equal(ui.error.hidden, false);
 assert.equal(ui.error.scrolled, true);
 assert.equal(ui.first.checkbox.disabled, false);

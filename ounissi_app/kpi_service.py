@@ -5,6 +5,7 @@ The displayed read time is not a source-synchronization timestamp.
 """
 import calendar
 import re
+from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -17,7 +18,8 @@ from .kpi_scoring import seconds, summarize_items
 from .models import Schedule, ScheduleItem, Timesheet
 from .navigation import ADMIN, LEADER, role_for
 
-MONTH_RE = re.compile(r'^\d{4}-(0[1-9]|1[0-2])$')
+MONTH_RE = re.compile(r'^[0-9]{4}-(0[1-9]|1[0-2])$')
+DAY_RE = re.compile(r'^[0-9]{4}-(0[1-9]|1[0-2])-[0-9]{2}$')
 POLL_SECONDS = 30
 
 
@@ -33,6 +35,78 @@ def parse_month(value, today=None):
         return date(year, month, 1)
     except ValueError:
         raise ValueError('Mois invalide. Utilisez le format AAAA-MM.') from None
+
+
+def parse_day(value, today=None):
+    """Return a valid YYYY-MM-DD, or raise ValueError."""
+    today = today or timezone.localdate()
+    if value is None or value == '':
+        return today
+    if not DAY_RE.fullmatch(value):
+        raise ValueError('Jour invalide. Utilisez le format AAAA-MM-JJ.')
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise ValueError('Jour invalide. Utilisez le format AAAA-MM-JJ.') from None
+
+
+@dataclass(frozen=True)
+class KPIPeriod:
+    mode: str
+    day: date
+    month: date
+    automatic: bool = False
+
+    @property
+    def start(self):
+        return self.day if self.mode == 'day' else self.month
+
+    @property
+    def end(self):
+        if self.mode == 'day':
+            return self.day
+        return self.month.replace(day=calendar.monthrange(self.month.year, self.month.month)[1])
+
+    @property
+    def day_value(self):
+        return f'{self.day.year:04d}-{self.day.month:02d}-{self.day.day:02d}'
+
+    @property
+    def month_value(self):
+        return f'{self.month.year:04d}-{self.month.month:02d}'
+
+    @property
+    def label(self):
+        if self.mode == 'day':
+            return f'Jour : {self.day.day:02d}/{self.day.month:02d}/{self.day.year:04d}'
+        return f'Mois : {self.month.month:02d}/{self.month.year:04d}'
+
+
+def parse_period(params, today=None):
+    """Validate the selected mode and date; preserve the other valid input.
+
+    Existing links containing only ``month`` continue to select monthly mode.
+    A missing active date follows today/current month on subsequent polls.
+    """
+    today = today or timezone.localdate()
+    mode = params.get('period') or ('month' if params.get('month') and not params.get('day') else 'day')
+    if mode not in ('day', 'month'):
+        raise ValueError('Période invalide. Choisissez un jour ou un mois.')
+    active = params.get('day' if mode == 'day' else 'month')
+    automatic = not active
+    if mode == 'day':
+        day = parse_day(active, today)
+        try:
+            month = parse_month(params.get('month'), today)
+        except ValueError:
+            month = today.replace(day=1)
+    else:
+        month = parse_month(active, today)
+        try:
+            day = parse_day(params.get('day'), today)
+        except ValueError:
+            day = today
+    return KPIPeriod(mode=mode, day=day, month=month, automatic=automatic)
 
 
 def format_number(value):
@@ -150,20 +224,42 @@ def _attendance(records, today):
             'incomplete': incomplete, 'future': future, 'rows': rows, 'count': len(records)}
 
 
-def _team_records(members, records):
-    by_employee = {record.employee_id: record for record in records}
-    rows, counts = [], {'open': 0, 'closed': 0, 'unknown': 0, 'leave': 0}
+def _team_records(members, records, mode):
+    """Daily status per member, or monthly counts of saved records per member."""
+    by_employee = {member.pk: [] for member in members}
+    counts = {'open': 0, 'closed': 0, 'unknown': 0, 'leave': 0, 'missing_members': 0,
+              'record_total': 0}
+    for record in records:
+        # Membership can change between fetching the roster and the records.
+        # Only count records belonging to the captured, authorized roster.
+        if record.employee_id not in by_employee:
+            continue
+        info = _record_info(record)
+        by_employee[record.employee_id].append((record, info))
+        counts[info['kind']] += 1
+        counts['record_total'] += 1
+    rows = []
     for member in members:
-        record = by_employee.get(member.pk)
-        info = _record_info(record) if record else None
-        kind = info['kind'] if info else 'unknown'
-        counts[kind] += 1
+        entries = by_employee[member.pk]
         name = ' '.join(part for part in (member.first_name, member.last_name) if part) or f'Employé {member.pk}'
-        secondary = ('Confirmé' if record.is_confirmed else 'En attente') if record else 'Aucun pointage enregistré'
-        if info and info['last']:
-            secondary += f" · dernier horaire {info['last'].strftime('%H:%M')}"
-        rows.append({'primary': name, 'secondary': secondary,
-                     'status': info['label'] if info else 'État inconnu', 'kind': kind})
+        if not entries:
+            counts['missing_members'] += 1
+            rows.append({'primary': name, 'secondary': 'Aucun pointage enregistré',
+                         'status': 'État inconnu', 'kind': 'unknown'})
+        elif mode == 'day':
+            record, info = entries[0]  # Timesheet is unique per employee and date.
+            secondary = 'Confirmé' if record.is_confirmed else 'En attente'
+            if info['last']:
+                secondary += f" · dernier horaire {info['last'].strftime('%H:%M')}"
+            rows.append({'primary': name, 'secondary': secondary, 'status': info['label'], 'kind': info['kind']})
+        else:
+            member_counts = {key: sum(info['kind'] == key for _, info in entries)
+                             for key in ('open', 'closed', 'unknown', 'leave')}
+            secondary = (f"{member_counts['open']} ouvert(s) · {member_counts['closed']} clôturé(s) · "
+                         f"{member_counts['unknown']} à vérifier · {member_counts['leave']} congé(s)")
+            kind = 'open' if member_counts['open'] else 'unknown' if member_counts['unknown'] else 'closed'
+            rows.append({'primary': name, 'secondary': secondary,
+                         'status': f'{len(entries)} enregistrement(s)', 'kind': kind})
     return rows, counts
 
 
@@ -171,7 +267,7 @@ def _missing_score(summary, no_scope):
     if no_scope:
         return no_scope
     if not summary.task_count:
-        return 'Aucune tâche affectée aujourd’hui.'
+        return 'Aucune tâche affectée sur cette période.'
     if summary.invalid_count:
         return f'{summary.invalid_count} tâche(s) ont des données de progression, durée ou priorité invalides ou manquantes.'
     return 'Aucun objectif en points disponible.'
@@ -185,9 +281,9 @@ def _score_card(card, summary, no_scope, score=False):
     assigned = format_number(summary.assigned_points)
     percentage = format_number(summary.percentage)
     if score:
-        card.update(value=achieved, unit='points', detail=f'{assigned} points affectés · {percentage} % · TRT du jour')
+        card.update(value=achieved, unit='points', detail=f'{assigned} points affectés · {percentage} % · période sélectionnée')
     else:
-        card.update(value=percentage, unit='%', detail=f'{achieved} / {assigned} points · TRT du jour')
+        card.update(value=percentage, unit='%', detail=f'{achieved} / {assigned} points · période sélectionnée')
         if card['presentation'] == 'bar':
             # The accessible bar is bounded; the actual percentage remains uncapped.
             card['bar_value'] = float(min(Decimal(100), max(Decimal(0), summary.percentage)))
@@ -199,10 +295,10 @@ def _tasks_card(card, summary, no_scope):
     if no_scope:
         card.update(value='—', detail=no_scope)
     elif not summary.task_count:
-        card.update(value='—', detail='Aucune tâche affectée aujourd’hui.')
+        card.update(value='—', detail='Aucune tâche affectée sur cette période.')
     else:
         card.update(value=f'{summary.completed_count} / {summary.task_count}', unit='tâches',
-                    detail='Terminées / affectées dans les TRT du jour.')
+                    detail='Terminées / affectées sur la période sélectionnée.')
         if summary.invalid_count:
             card['warning'] = f'{summary.invalid_count} tâche(s) sans données suffisantes pour déterminer leur état.'
 
@@ -228,13 +324,13 @@ def _personal_task(item):
             'bar_value': float(min(Decimal(100), rate)) if rate is not None else 0}
 
 
-def snapshot(user, surface, month=None, schedule_override=...):
+def snapshot(user, surface, period=None, schedule_override=...):
     """Return one scoped, presentation-filtered snapshot for a signed-in user."""
     if surface not in ('live', 'dashboard'):
         raise ValueError('Emplacement inconnu.')
     now = timezone.localtime()
     today = now.date()
-    month = month or today.replace(day=1)
+    period = period or parse_period({}, today)
     role = role_for(user)
     settings = [row for row in settings_for(role) if row['show_live' if surface == 'live' else 'show_dashboard']]
     keys = {row['definition'].key for row in settings}
@@ -259,12 +355,19 @@ def snapshot(user, surface, month=None, schedule_override=...):
         task_scope |= Q(employee_id=employee.pk)
     if team and team_tasks_needed:
         task_scope |= Q(employee_id=employee.pk) | Q(employee_id__in=team.employees.values('pk'))
-    # KPI totals cover every non-template TRT today, including completed or
-    # future ones. The personal task table still shows only the active TRT.
-    items = list(ScheduleItem.objects.filter(task_scope, schedule__date=today, schedule__is_template=False)
+    # KPI totals cover all non-template TRTs in the selected period. The
+    # personal operational table always remains the current active TRT.
+    items = list(ScheduleItem.objects.filter(task_scope, schedule__date__gte=period.start,
+                                             schedule__date__lte=period.end, schedule__is_template=False)
                  .select_related('task__progress_query').order_by('pk'))
     own_items = [item for item in items if employee and item.employee_id == employee.pk]
-    active_items = [item for item in own_items if schedule and item.schedule_id == schedule.pk]
+    active_items = []
+    if surface == 'live' and employee and schedule:
+        if period.start <= schedule.date <= period.end:
+            active_items = [item for item in own_items if item.schedule_id == schedule.pk]
+        else:
+            active_items = list(ScheduleItem.objects.filter(schedule=schedule, employee=employee)
+                                .select_related('task__progress_query').order_by('pk'))
     team_items = [item for item in items if item.employee_id in member_ids]
     own_score, team_score = summarize_items(own_items), summarize_items(team_items)
     own_missing = 'Aucun profil d’employé associé à ce compte.' if not employee else None
@@ -272,21 +375,24 @@ def snapshot(user, surface, month=None, schedule_override=...):
 
     personal_records = []
     if employee and any(key.startswith('attendance_') for key in keys):
-        last_day = calendar.monthrange(month.year, month.month)[1]
-        personal_records = list(Timesheet.objects.filter(employee=employee, date__gte=month,
-                                                        date__lte=month.replace(day=last_day)).order_by('-date'))
+        personal_records = list(Timesheet.objects.filter(employee=employee, date__gte=period.start,
+                                                        date__lte=period.end).order_by('-date'))
     attendance = _attendance(personal_records, today)
-    team_record_rows, team_record_counts = [], {'open': 0, 'closed': 0, 'unknown': 0, 'leave': 0}
+    team_record_rows = []
+    team_record_counts = {'open': 0, 'closed': 0, 'unknown': 0, 'leave': 0,
+                          'missing_members': 0, 'record_total': 0}
     if team and ('team_presence' in keys or 'team_records' in keys):
-        records = list(Timesheet.objects.filter(Q(employee_id=employee.pk) | Q(employee_id__in=team.employees.values('pk')), date=today))
-        team_record_rows, team_record_counts = _team_records(members, records)
+        records = list(Timesheet.objects.filter(Q(employee_id=employee.pk) | Q(employee_id__in=team.employees.values('pk')),
+                                               date__gte=period.start, date__lte=period.end).order_by('-date'))
+        team_record_rows, team_record_counts = _team_records(members, records, period.mode)
 
     cards = []
     for setting in settings:
         definition = setting['definition']
         key = definition.key
         card = {'key': key, 'label': definition.label, 'icon': definition.icon,
-                'presentation': setting['presentation'], 'value': '—', 'unit': '',
+                'presentation': setting['presentation'], 'group': 'team' if definition.group == 'team' else 'personal',
+                'value': '—', 'unit': '',
                 'detail': '', 'warning': '', 'rows': []}
         if key == 'my_progress':
             _score_card(card, own_score, own_missing)
@@ -298,16 +404,16 @@ def snapshot(user, surface, month=None, schedule_override=...):
             if own_missing:
                 card['detail'] = own_missing
             elif not own_score.task_count:
-                card['detail'] = 'Aucune tâche affectée aujourd’hui.'
+                card['detail'] = 'Aucune tâche affectée sur cette période.'
             elif own_score.invalid_time_count:
                 card['detail'] = 'Au moins une durée affectée est invalide ou manquante.'
             else:
-                card.update(value=format_duration(own_score.assigned_seconds), detail='Durées affectées dans les TRT du jour.')
+                card.update(value=format_duration(own_score.assigned_seconds), detail='Durées affectées sur la période sélectionnée.')
         elif key.startswith('attendance_'):
             if not employee:
                 card['detail'] = 'Aucun profil d’employé associé à ce compte.'
             elif not attendance['count']:
-                card['detail'] = 'Aucun enregistrement pour ce mois ; une absence ne peut pas être déduite.'
+                card['detail'] = 'Aucun enregistrement pour cette période ; une absence ne peut pas être déduite.'
             elif key == 'attendance_days':
                 card.update(value=str(attendance['days']), unit='jours', detail='Jours avec entrée et pointage confirmé, hors congés.')
                 if attendance['incomplete']:
@@ -320,7 +426,7 @@ def snapshot(user, surface, month=None, schedule_override=...):
                 card.update(value=str(attendance['pending']), unit='enregistrement(s)', detail='Pointages et congés en attente, exclus des totaux confirmés.')
             elif key == 'attendance_records':
                 card.update(value=str(attendance['count']), unit='enregistrement(s)',
-                            detail='Données enregistrées pour le mois sélectionné.', rows=attendance['rows'])
+                            detail='Données enregistrées pour la période sélectionnée.', rows=attendance['rows'])
             if attendance['future'] and key in ('attendance_days', 'attendance_hours'):
                 extra = f"{attendance['future']} enregistrement(s) futur(s) exclus."
                 card['warning'] = ' '.join(filter(None, (card['warning'], extra)))
@@ -334,15 +440,31 @@ def snapshot(user, surface, month=None, schedule_override=...):
             if not team:
                 card['detail'] = 'Aucune équipe dirigée associée à ce compte.'
             elif key == 'team_presence':
-                card.update(value=str(team_record_counts['open']), unit='pointage(s) ouvert(s)',
-                            detail=f"Sur {len(members)} membre(s) · {team_record_counts['unknown']} état(s) inconnu(s) ou à vérifier.")
+                missing = team_record_counts['missing_members']
+                unknown = team_record_counts['unknown']
+                if period.mode == 'month' and not team_record_counts['record_total']:
+                    card['detail'] = 'Aucun enregistrement pour cette période ; une absence ne peut pas être déduite.'
+                elif period.mode == 'month':
+                    card.update(value=str(team_record_counts['open']), unit='pointage(s) ouvert(s)',
+                                detail=f"Sur {team_record_counts['record_total']} enregistrement(s) · {missing} membre(s) sans pointage.")
+                else:
+                    card.update(value=str(team_record_counts['open']), unit='pointage(s) ouvert(s)',
+                                detail=f"Sur {len(members)} membre(s) · {missing + unknown} état(s) inconnu(s) ou à vérifier.")
                 card['warning'] = 'Pointages enregistrés, pas une présence en direct.'
             else:
-                card.update(value=str(len(members)), unit='membre(s)',
-                            detail='État enregistré aujourd’hui, pas une présence en direct.', rows=team_record_rows)
+                if period.mode == 'month':
+                    detail = f"{team_record_counts['record_total']} enregistrement(s) sur la période · synthèse par membre."
+                else:
+                    detail = 'État enregistré pour le jour sélectionné, pas une présence en direct.'
+                card.update(value=str(len(members)), unit='membre(s)', detail=detail, rows=team_record_rows)
         cards.append(card)
 
-    return {'cards': cards, 'surface': surface, 'month': f'{month.year:04d}-{month.month:02d}',
+    groups = []
+    for key, title in (('personal', 'Mes indicateurs'), ('team', 'Indicateurs de mon équipe')):
+        group_cards = [card for card in cards if card['group'] == key]
+        if group_cards:
+            groups.append({'key': key, 'title': title, 'cards': group_cards})
+    return {'cards': cards, 'groups': groups, 'surface': surface, 'period': period,
             'schedule_id': schedule.pk if schedule else None,
             'tasks': [_personal_task(item) for item in active_items] if surface == 'live' else [],
             'read_at': now.strftime('%H:%M:%S'), 'poll_seconds': POLL_SECONDS}

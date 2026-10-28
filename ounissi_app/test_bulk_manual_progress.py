@@ -185,6 +185,33 @@ class BulkManualProgressTests(TestCase):
         self.first.refresh_from_db()
         self.assertEqual(self.first.progression_rate, 25)
 
+    def test_preset_selects_preserve_legacy_rates_and_support_no_javascript(self):
+        # Older entries, including the formerly offered 75 %, must not be
+        # silently reset when a manager validates a selection unchanged.
+        self.second.progression_rate = 75
+        self.second.save()
+        with patch('ounissi_app.schedule_service.get_current_active_schedule', return_value=self.schedule):
+            response = self.client.get(reverse('actual_schedule_details'))
+        html = response.content.decode()
+        start = html.index(f'<select id="manual-rate-{self.second.pk}"')
+        end = html.index('</select>', start)
+        select = html[start:end]
+        self.assertIn('<option value="75" selected>75 % (enregistré)</option>', select)
+        for rate in (0, 25, 50, 100):
+            self.assertIn(f'<option value="{rate}">{rate} %</option>', select)
+        self.assertNotIn('type="number"', select)
+        response = self.client.post(self.url, {
+            'selected_item': [str(self.first.pk), str(self.second.pk)],
+            f'rate_{self.first.pk}': '50', f'rate_{self.second.pk}': '75',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.first.refresh_from_db(); self.second.refresh_from_db()
+        self.assertEqual((self.first.progression_rate, self.second.progression_rate), (50, 75))
+        # The individual, no-JS submit button continues to use the same select.
+        self.client.post(self.url, {'single_item': str(self.second.pk), f'rate_{self.second.pk}': '100'})
+        self.second.refresh_from_db()
+        self.assertEqual(self.second.progression_rate, 100)
+
     def test_active_and_selected_trt_render_bulk_controls_for_all_manual_kinds(self):
         ScheduleItem.objects.filter(pk=self.second.pk).update(progression_rate=None)
         with patch('ounissi_app.schedule_service.get_current_active_schedule', return_value=self.schedule):
@@ -199,7 +226,12 @@ class BulkManualProgressTests(TestCase):
             self.assertContains(response, f'data-manual-item="{self.completed.pk}"')
             self.assertNotContains(response, f'data-manual-item="{self.automatic.pk}"')
             self.assertNotContains(response, f'data-manual-item="{self.unassigned.pk}"')
-            self.assertContains(response, f'name="rate_{self.second.pk}" value="0"')
+            self.assertContains(response, f'<select id="manual-rate-{self.second.pk}"')
+            self.assertContains(response, '<option value="0" selected>0 %</option>')
+            self.assertContains(response, '<option value="25" selected>25 %</option>')
+            self.assertContains(response, '<option value="50">50 %</option>')
+            self.assertContains(response, '<option value="100" selected>100 %</option>')
+            self.assertNotContains(response, '<option value="75">75 %</option>')
         self.client.force_login(self.worker_user)
         with patch('ounissi_app.schedule_service.get_current_active_schedule', return_value=self.schedule):
             employee_page = self.client.get(reverse('actual_schedule_details'))

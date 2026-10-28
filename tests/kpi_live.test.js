@@ -19,11 +19,13 @@ function setup(surface = 'live', dataTable = true) {
     };
     const table = {querySelectorAll: () => [row]};
     const panel = {hidden: false}, cards = {innerHTML: 'old'}, readTime = {textContent: '12:00'}, error = {hidden: true};
+    const dateInput = {value: '2026-10-28'}, otherInput = {value: '2026-10'}, periodLabel = {textContent: 'Jour : 28/10/2026'};
     const notice = {hidden: true};
     const root = {
-        dataset: {kpiUrl: '/indicators/snapshot/', kpiSurface: surface, kpiInterval: '30', kpiMonth: '2026-10', kpiSchedule: '9'},
+        dataset: {kpiUrl: '/indicators/snapshot/', kpiSurface: surface, kpiInterval: '30', kpiPeriod: 'day', kpiDay: '2026-10-28', kpiMonth: '2026-10', kpiAutomatic: '1', kpiSchedule: '9'},
         querySelector(selector) { return {'[data-kpi-panel]': panel, '[data-kpi-cards]': cards,
-            '[data-kpi-read]': readTime, '[data-kpi-error]': error}[selector]; }
+            '[data-kpi-read]': readTime, '[data-kpi-error]': error, '[data-kpi-date]': dateInput,
+            '[data-kpi-other-date]': otherInput, '[data-kpi-period-label]': periodLabel}[selector]; }
     };
     const handlers = {}, timers = new Map();
     let timerId = 0;
@@ -66,14 +68,14 @@ function setup(surface = 'live', dataTable = true) {
         const entry = [...timers.entries()][0]; assert.ok(entry, 'expected a timer');
         timers.delete(entry[0]); entry[1].fn(); return entry[1].delay;
     }
-    return {root, panel, cards, readTime, error, notice, nodes, row, api, requests, document, handlers, timers, tick};
+    return {root, panel, cards, readTime, error, dateInput, otherInput, periodLabel, notice, nodes, row, api, requests, document, handlers, timers, tick};
 }
 
 const live = setup();
 assert.equal(live.tick(), 30000);
 assert.equal(live.requests.length, 1);
 assert.equal(live.requests[0].method, 'GET');
-assert.equal(live.requests[0].url, '/indicators/snapshot/?surface=live'); // no Xpert and no stale month
+assert.equal(live.requests[0].url, '/indicators/snapshot/?surface=live&period=day'); // saved data, default follows the server date
 assert.equal(live.requests[0].headers.Accept, 'application/json');
 live.requests[0].respond({
     html: '<article>updated</article>', card_count: 1, read_at: '12:00:30', schedule_id: 9,
@@ -127,9 +129,48 @@ live.handlers['window:pageshow']({persisted: true});
 assert.equal(live.requests.length, 7);
 
 const dashboard = setup('dashboard', false);
+dashboard.root.dataset.kpiPeriod = 'month';
+dashboard.root.dataset.kpiMonth = '2026-09';
+dashboard.root.dataset.kpiAutomatic = '0';
+dashboard.dateInput.value = '2026-09';
+dashboard.otherInput.value = '2026-10-28';
 dashboard.tick();
-assert.equal(dashboard.requests[0].url, '/indicators/snapshot/?surface=dashboard&month=2026-10');
+assert.equal(dashboard.requests[0].url, '/indicators/snapshot/?surface=dashboard&period=month&day=2026-10-28&month=2026-09');
 dashboard.requests[0].respond({html: 'month', card_count: 0, read_at: '12:00', schedule_id: 9, tasks: []});
 assert.equal(dashboard.panel.hidden, false); // page shows an informative empty state
 assert.equal(dashboard.api.invalidated, 0);
+// Explicitly selected historical days persist in polling on the home page too.
+const historical = setup();
+historical.root.dataset.kpiAutomatic = '0';
+historical.root.dataset.kpiDay = '2026-02-03';
+historical.tick();
+assert.equal(historical.requests[0].url, '/indicators/snapshot/?surface=live&period=day&day=2026-02-03&month=2026-10');
+historical.requests[0].respond({html: 'historic', card_count: 1, read_at: '12:00', schedule_id: 9, tasks: [],
+    period: {mode: 'day', day: '2026-02-03', month: '2026-10', label: 'Jour : 03/02/2026'}});
+historical.tick();
+assert.ok(historical.requests[1].url.includes('day=2026-02-03'));
+
+// An untouched default advances across midnight/month-end, without overwriting
+// a user's unfinished date edit or pinning the next request to yesterday.
+const automatic = setup();
+automatic.tick();
+automatic.dateInput.value = '2026-08-15';
+automatic.requests[0].respond({html: 'next', card_count: 1, read_at: '00:00', schedule_id: 9, tasks: [],
+    period: {mode: 'day', day: '2026-11-01', month: '2026-11', label: 'Jour : 01/11/2026'}});
+assert.equal(automatic.dateInput.value, '2026-08-15');
+assert.equal(automatic.otherInput.value, '2026-11');
+assert.equal(automatic.root.dataset.kpiDay, '2026-11-01');
+assert.equal(automatic.periodLabel.textContent, 'Jour : 01/11/2026');
+automatic.tick();
+assert.equal(automatic.requests[1].url, '/indicators/snapshot/?surface=live&period=day');
+
+const newMonth = setup('dashboard');
+newMonth.root.dataset.kpiPeriod = 'month';
+newMonth.dateInput.value = '2026-10'; newMonth.otherInput.value = '2026-10-28';
+newMonth.tick();
+newMonth.requests[0].respond({html: 'new month', card_count: 1, read_at: '00:00', schedule_id: 9, tasks: [],
+    period: {mode: 'month', day: '2026-11-01', month: '2026-11', label: 'Mois : 11/2026'}});
+assert.equal(newMonth.dateInput.value, '2026-11');
+assert.equal(newMonth.otherInput.value, '2026-11-01');
+assert.equal(newMonth.periodLabel.textContent, 'Mois : 11/2026');
 console.log('KPI polling, saved-data updates, DataTables, failures and visibility: OK');

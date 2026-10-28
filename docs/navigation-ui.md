@@ -12,6 +12,8 @@ python manage.py collectstatic
 
 La migration `0006_navigation_visibility` ajoute uniquement les préférences du menu. Les nouvelles entrées utilisent leurs valeurs par défaut tant qu’aucun réglage n’a été enregistré.
 
+La recherche globale de pages a été retirée ; les recherches propres aux tableaux restent disponibles.
+
 ## Utilisation
 
 1. Connectez-vous avec un superutilisateur ou un compte membre du groupe Django **Admin**.

@@ -29,19 +29,19 @@ class Indicator:
 
 
 INDICATORS = (
-    Indicator('my_progress', 'Progression de mes tâches', 'Points réalisés / points affectés pour tous les TRT du jour.', 'fa-line-chart', ALL, ALL, ALL, ('value', 'bar'), 'bar', 10, 'trt'),
-    Indicator('my_score', 'Mon score réalisé', 'Secondes réalisées divisées par la priorité de chaque tâche du jour.', 'fa-star-o', ALL, (), ALL, ('value',), 'value', 20, 'trt'),
-    Indicator('my_tasks', 'Mes tâches terminées', 'Nombre de tâches affectées terminées pour tous les TRT du jour.', 'fa-check-square-o', ALL, ALL, ALL, ('value',), 'value', 30, 'trt'),
-    Indicator('my_assigned', 'Mon temps affecté', 'Somme des durées affectées pour tous les TRT du jour.', 'fa-hourglass-half', ALL, (), ALL, ('value',), 'value', 40, 'trt'),
-    Indicator('attendance_days', 'Jours travaillés confirmés', 'Jours du mois avec au moins une entrée et un pointage confirmé, hors congés.', 'fa-calendar-check-o', ALL, (), ALL, ('value',), 'value', 50, 'attendance'),
+    Indicator('my_progress', 'Progression de mes tâches', 'Points réalisés / points affectés pour tous les TRT de la période.', 'fa-line-chart', ALL, ALL, ALL, ('value', 'bar'), 'bar', 10, 'trt'),
+    Indicator('my_score', 'Mon score réalisé', 'Secondes réalisées divisées par la priorité de chaque tâche de la période.', 'fa-star-o', ALL, (), ALL, ('value',), 'value', 20, 'trt'),
+    Indicator('my_tasks', 'Mes tâches terminées', 'Nombre de tâches affectées terminées pour tous les TRT de la période.', 'fa-check-square-o', ALL, ALL, ALL, ('value',), 'value', 30, 'trt'),
+    Indicator('my_assigned', 'Mon temps affecté', 'Somme des durées affectées pour tous les TRT de la période.', 'fa-hourglass-half', ALL, (), ALL, ('value',), 'value', 40, 'trt'),
+    Indicator('attendance_days', 'Jours travaillés confirmés', 'Jours de la période avec au moins une entrée et un pointage confirmé, hors congés.', 'fa-calendar-check-o', ALL, (), ALL, ('value',), 'value', 50, 'attendance'),
     Indicator('attendance_hours', 'Heures confirmées', 'Somme des plages complètes et non ambiguës des pointages confirmés.', 'fa-clock-o', ALL, (), ALL, ('value',), 'value', 60, 'attendance'),
     Indicator('attendance_pending', 'Enregistrements en attente', 'Pointages et congés non confirmés, séparés des totaux confirmés.', 'fa-hourglass-o', ALL, (), ALL, ('value',), 'value', 70, 'attendance'),
-    Indicator('attendance_records', 'Détail de mon pointage', 'Enregistrements importés ou saisis pour le mois sélectionné.', 'fa-list-alt', ALL, (), ALL, ('value', 'details'), 'details', 80, 'attendance'),
-    Indicator('team_progress', 'Progression de mon équipe', 'Points réalisés / points affectés par les membres de mon équipe aujourd’hui.', 'fa-line-chart', TEAM_ROLES, TEAM_ROLES, TEAM_ROLES, ('value', 'bar'), 'bar', 90, 'team'),
-    Indicator('team_score', 'Score de mon équipe', 'Somme des secondes réalisées / priorité des membres aujourd’hui.', 'fa-star-o', TEAM_ROLES, (), TEAM_ROLES, ('value',), 'value', 100, 'team'),
-    Indicator('team_tasks', 'Tâches terminées par mon équipe', 'Nombre de tâches affectées terminées pour tous les TRT du jour.', 'fa-check-square-o', TEAM_ROLES, TEAM_ROLES, TEAM_ROLES, ('value',), 'value', 110, 'team'),
-    Indicator('team_presence', 'Pointages ouverts de mon équipe', 'Entrées enregistrées sans sortie correspondante aujourd’hui ; pas une présence en direct.', 'fa-users', TEAM_ROLES, TEAM_ROLES, TEAM_ROLES, ('value',), 'value', 120, 'team'),
-    Indicator('team_records', 'Pointages de mon équipe', 'Dernier état enregistré aujourd’hui pour chaque membre de mon équipe.', 'fa-address-book-o', TEAM_ROLES, (), TEAM_ROLES, ('value', 'details'), 'details', 130, 'team'),
+    Indicator('attendance_records', 'Détail de mon pointage', 'Enregistrements importés ou saisis pour la période sélectionnée.', 'fa-list-alt', ALL, (), ALL, ('value', 'details'), 'details', 80, 'attendance'),
+    Indicator('team_progress', 'Progression de mon équipe', 'Points réalisés / points affectés par les membres de mon équipe sur la période.', 'fa-line-chart', TEAM_ROLES, TEAM_ROLES, TEAM_ROLES, ('value', 'bar'), 'bar', 90, 'team'),
+    Indicator('team_score', 'Score de mon équipe', 'Somme des secondes réalisées / priorité des membres sur la période.', 'fa-star-o', TEAM_ROLES, (), TEAM_ROLES, ('value',), 'value', 100, 'team'),
+    Indicator('team_tasks', 'Tâches terminées par mon équipe', 'Nombre de tâches affectées terminées pour tous les TRT de la période.', 'fa-check-square-o', TEAM_ROLES, TEAM_ROLES, TEAM_ROLES, ('value',), 'value', 110, 'team'),
+    Indicator('team_presence', 'Pointages ouverts de mon équipe', 'Entrées enregistrées sans sortie correspondante sur la période ; pas une présence en direct.', 'fa-users', TEAM_ROLES, TEAM_ROLES, TEAM_ROLES, ('value',), 'value', 120, 'team'),
+    Indicator('team_records', 'Pointages de mon équipe', 'État du jour sélectionné ou synthèse mensuelle des enregistrements par membre.', 'fa-address-book-o', TEAM_ROLES, (), TEAM_ROLES, ('value', 'details'), 'details', 130, 'team'),
 )
 
 

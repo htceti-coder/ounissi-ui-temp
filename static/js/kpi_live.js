@@ -79,6 +79,22 @@
             if (!data || typeof data.html !== 'string' || !Array.isArray(data.tasks)) throw new Error('Invalid snapshot');
             if (cards.innerHTML !== data.html) cards.innerHTML = data.html;
             if (readTime && typeof data.read_at === 'string') readTime.textContent = data.read_at;
+            if (data.period && root.dataset.kpiAutomatic === '1') {
+                var mode = root.dataset.kpiPeriod || 'day';
+                var dateInput = root.querySelector('[data-kpi-date]');
+                var otherInput = root.querySelector('[data-kpi-other-date]');
+                var oldValue = mode === 'day' ? root.dataset.kpiDay : root.dataset.kpiMonth;
+                var newValue = mode === 'day' ? data.period.day : data.period.month;
+                var oldOther = mode === 'day' ? root.dataset.kpiMonth : root.dataset.kpiDay;
+                var newOther = mode === 'day' ? data.period.month : data.period.day;
+                // Do not erase an unsubmitted edit while a poll completes.
+                if (dateInput && dateInput.value === oldValue) dateInput.value = newValue;
+                if (otherInput && otherInput.value === oldOther) otherInput.value = newOther;
+                root.dataset.kpiDay = data.period.day;
+                root.dataset.kpiMonth = data.period.month;
+                var label = root.querySelector('[data-kpi-period-label]');
+                if (label) label.textContent = data.period.label || '';
+            }
             if (error) error.hidden = true;
             if (panel && root.dataset.kpiSurface === 'live') panel.hidden = !data.card_count;
             updateTasks(data);
@@ -92,9 +108,12 @@
             window.clearTimeout(timer);
             if (stopped || request) return;
             if (document.visibilityState === 'hidden') { scheduleNext(); return; }
-            var url = root.dataset.kpiUrl + '?surface=' + encodeURIComponent(root.dataset.kpiSurface);
-            // A live home tab should follow the current month across midnight.
-            if (root.dataset.kpiSurface === 'dashboard') url += '&month=' + encodeURIComponent(root.dataset.kpiMonth);
+            var url = root.dataset.kpiUrl + '?surface=' + encodeURIComponent(root.dataset.kpiSurface)
+                + '&period=' + encodeURIComponent(root.dataset.kpiPeriod || 'day');
+            // Defaults follow the current day/month; an explicitly selected date stays pinned.
+            if (root.dataset.kpiAutomatic !== '1') {
+                url += '&day=' + encodeURIComponent(root.dataset.kpiDay || '') + '&month=' + encodeURIComponent(root.dataset.kpiMonth || '');
+            }
             var xhr = new window.XMLHttpRequest();
             request = xhr;
             xhr.open('GET', url, true);

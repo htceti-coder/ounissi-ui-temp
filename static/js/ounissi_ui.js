@@ -15,8 +15,6 @@
     var root = document.documentElement;
     var body = document.body;
     var storagePrefix = "ounissi.ui.";
-    var activeCommandIndex = 0;
-    var commandItems = [];
 
     function ready(callback) {
         if (document.readyState === "loading") {
@@ -225,126 +223,6 @@
         if (icon) {
             icon.className = theme === "dark" ? "fa fa-sun-o" : "fa fa-moon-o";
         }
-    }
-
-    /* ------------------------------------------------------------------ */
-    /* Command palette                                                    */
-    /* ------------------------------------------------------------------ */
-
-    function collectCommands() {
-        var seen = {};
-        commandItems = selectAll(".sidebar-nav .nav-link").map(function (link) {
-            var label = (link.textContent || "").replace(/LIVE/g, "").trim();
-            var href = link.getAttribute("href");
-            if (!href || seen[href]) return null;
-            seen[href] = true;
-            var icon = select("i", link);
-            return {
-                label: label,
-                href: href,
-                path: normalizePath(href),
-                icon: icon ? icon.className : "fa fa-link"
-            };
-        }).filter(Boolean);
-    }
-
-    function openCommandPalette() {
-        var palette = select("#command-palette");
-        var input = select("#command-input");
-        if (!palette || !input) return;
-        palette.classList.add("is-open");
-        palette.setAttribute("aria-hidden", "false");
-        body.style.overflow = "hidden";
-        input.value = "";
-        activeCommandIndex = 0;
-        renderCommands("");
-        window.setTimeout(function () { input.focus(); }, 20);
-    }
-
-    function closeCommandPalette() {
-        var palette = select("#command-palette");
-        if (!palette) return;
-        palette.classList.remove("is-open");
-        palette.setAttribute("aria-hidden", "true");
-        body.style.overflow = "";
-    }
-
-    function renderCommands(query) {
-        var container = select("#command-results");
-        if (!container) return;
-        var normalized = (query || "").toLowerCase().trim();
-        var matches = commandItems.filter(function (item) {
-            return !normalized || item.label.toLowerCase().indexOf(normalized) !== -1 || item.path.toLowerCase().indexOf(normalized) !== -1;
-        });
-
-        if (activeCommandIndex >= matches.length) activeCommandIndex = Math.max(0, matches.length - 1);
-        container.innerHTML = "";
-
-        if (!matches.length) {
-            var empty = document.createElement("div");
-            empty.className = "command-empty";
-            empty.textContent = "Aucune page ne correspond à cette recherche.";
-            container.appendChild(empty);
-            return;
-        }
-
-        matches.forEach(function (item, index) {
-            var link = document.createElement("a");
-            link.href = item.href;
-            link.className = "command-result" + (index === activeCommandIndex ? " is-selected" : "");
-            link.setAttribute("data-command-index", String(index));
-
-            var icon = document.createElement("i");
-            icon.className = item.icon;
-            var label = document.createElement("span");
-            label.textContent = item.label;
-            var path = document.createElement("small");
-            path.textContent = item.path;
-            link.appendChild(icon);
-            link.appendChild(label);
-            link.appendChild(path);
-            container.appendChild(link);
-        });
-    }
-
-    function moveCommandSelection(direction) {
-        var results = selectAll("#command-results .command-result");
-        if (!results.length) return;
-        activeCommandIndex = (activeCommandIndex + direction + results.length) % results.length;
-        results.forEach(function (result, index) {
-            result.classList.toggle("is-selected", index === activeCommandIndex);
-        });
-        results[activeCommandIndex].scrollIntoView({ block: "nearest" });
-    }
-
-    function initCommandPalette() {
-        collectCommands();
-        if (!commandItems.length) return;
-        var input = select("#command-input");
-        selectAll("[data-command-open]").forEach(function (button) { button.addEventListener("click", openCommandPalette); });
-        selectAll("[data-command-close]").forEach(function (button) { button.addEventListener("click", closeCommandPalette); });
-        if (input) input.addEventListener("input", function () { activeCommandIndex = 0; renderCommands(input.value); });
-
-        document.addEventListener("keydown", function (event) {
-            var palette = select("#command-palette");
-            var open = palette && palette.classList.contains("is-open");
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-                event.preventDefault();
-                open ? closeCommandPalette() : openCommandPalette();
-                return;
-            }
-            if (!open) return;
-            if (event.key === "Escape") closeCommandPalette();
-            if (event.key === "ArrowDown") { event.preventDefault(); moveCommandSelection(1); }
-            if (event.key === "ArrowUp") { event.preventDefault(); moveCommandSelection(-1); }
-            if (event.key === "Enter") {
-                var selected = select("#command-results .command-result.is-selected");
-                if (selected) {
-                    event.preventDefault();
-                    window.location.href = selected.href;
-                }
-            }
-        });
     }
 
     /* Schedule tablists use roving focus and retain their existing click handlers. */
@@ -895,13 +773,12 @@
         body = document.body;
         initTheme();
         initSidebar();
-        organizeExtraNavLinks();      // must run before active-link detection & the palette index
+        organizeExtraNavLinks();      // must run before active-link detection
         initActiveNavigation();
         derivePageIdentity();
         updateClocks();
         window.setInterval(updateClocks, 1000);
 
-        initCommandPalette();
         initTabKeyboard();
         initPopupLinks();             // before initRequestFeedback so preventDefault is honoured
         initializeChosen(document);

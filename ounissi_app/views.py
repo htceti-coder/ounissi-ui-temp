@@ -10,7 +10,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.utils.module_loading import import_string
-from django.http import JsonResponse, HttpResponse, HttpResponseRedirect, HttpResponseNotAllowed
+from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest, HttpResponseRedirect, HttpResponseNotAllowed
 from django.db import IntegrityError, connection
 from django.core.exceptions import PermissionDenied, ValidationError
 import pandas as pd
@@ -2031,6 +2031,10 @@ def schedule_details(request, schedule_id=None):
 
 @login_required
 def schedule_current(request, schedule_id=None):
+    try:
+        kpi_period = kpi_service.parse_period(request.GET)
+    except ValueError as exc:
+        return HttpResponseBadRequest(str(exc))
     logged_data = getLoggedData(request)
     employee = logged_data.get('employee')
 
@@ -2056,7 +2060,7 @@ def schedule_current(request, schedule_id=None):
         'tasks_demande': tasks_demande,
         'tasks_saisie': tasks_saisie,
         'logged_data': logged_data,
-        'kpi_snapshot': kpi_service.snapshot(request.user, 'live', schedule_override=schedule),
+        'kpi_snapshot': kpi_service.snapshot(request.user, 'live', kpi_period, schedule_override=schedule),
     }
 
     if sched_data:
