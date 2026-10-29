@@ -1,9 +1,12 @@
 {% extends "base2.html" %}
-{% load custom_filters %}
+{% load custom_filters static l10n %}
 
 {% block title %}Home{% endblock %}
 
 {% block content%}
+
+{% include 'kpis/_panel.html' %}
+<p class="app-alert app-alert--info" data-live-assignment-change role="status" hidden>Les affectations ou le TRT ont changé. <a href="{% url 'home' %}?period={{ kpi_snapshot.period.mode }}{% if not kpi_snapshot.period.automatic %}&amp;day={{ kpi_snapshot.period.day_value }}&amp;month={{ kpi_snapshot.period.month_value }}{% endif %}">Actualiser la page</a> pour voir les tâches à jour.</p>
 
 
   <div class="w3-panel">
@@ -19,10 +22,10 @@
         <form method="post" action="{% url 'update_schedule_now' schedule_id=selected_schedule.id %}">
           {% csrf_token %}
           <input type="hidden" name="scope" value="mine">
-          <button type="submit"><i class="fa fa-refresh" aria-hidden="true"></i> Actualiser ma progression</button>
+          <button type="submit"><i class="fa fa-refresh" aria-hidden="true"></i> Actualiser mes tâches automatiques</button>
         </form>
 
-        <table class="filtertable w3-table w3-striped w3-white w3-border">
+        <table class="filtertable w3-table w3-striped w3-white w3-border" data-live-task-table>
           <thead>
             <tr class="w3-light-grey">
               <th>Tache</th>
@@ -32,23 +35,18 @@
             </tr>
           </thead>
           <tbody>
-          {% for schedule_item in schedule_items %}
-            {% with progression=schedule_item.assigned_time|division:schedule_item.task.average_duration %}
-            <tr>
-              {% if schedule_item.task_identifier != Null%}
-              <td>{{ schedule_item.task }}:{{schedule_item.task_identifier}}</td>
-              {% else %}
-              <td>{{ schedule_item.task }}</td>
-              {% endif %}
-              <td>{{ schedule_item.task.priority }}</td>
-              <td>{{ progression }}</td>
+          {% for item in kpi_snapshot.tasks %}
+            <tr data-live-task-id="{{ item.id }}">
+              <td data-live-task-name>{{ item.name }}</td>
+              <td data-live-task-priority>{{ item.priority }}</td>
+              <td data-live-task-goal>{{ item.goal }}</td>
               <td>
-                <div class="w3-grey">
-                  <div class="w3-container w3-left w3-green" style="width:clamp(0%, {{ schedule_item.progression_rate|default_if_none:0 }}%, 100%)">{{ schedule_item.progression_rate }}%</div>
+                <div class="kpi-task-progress">
+                  <progress data-live-task-bar value="{{ item.bar_value|unlocalize }}" max="100" aria-label="Progression : {{ item.name }}" aria-valuetext="{{ item.rate_label }}"></progress>
+                  <span data-live-task-rate>{{ item.rate_label }}</span>
                 </div>
               </td>
             </tr>
-            {% endwith %}
           {% endfor %}
           </tbody>
         </table>
@@ -117,3 +115,5 @@
   </div>
 {% endif %}
 {% endblock %}
+
+{% block scripts %}<script src="{% static 'js/kpi_live.js' %}"></script>{% endblock %}

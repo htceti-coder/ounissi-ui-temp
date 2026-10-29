@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic.base import TemplateView
-from . import views
+from . import views, navigation_views, kpi_views
 import accounts.views
 from .api import ninja_api
 urlpatterns = [
@@ -35,6 +35,7 @@ urlpatterns = [
     path('update_schedule_now/<int:schedule_id>', views.update_schedule_now, name='update_schedule_now'),
     path('schedule/<int:schedule_id>/', views.schedule_details, name='schedule_details_selected'),
     path('schedule/scheduleItem_update/<int:pk>', views.scheduleItem_update, name='scheduleItem_update'),
+    path('schedule/<int:schedule_id>/manual-progress/', views.bulk_manual_progress, name='bulk_manual_progress'),
     path('schedule/create_schedule/', views.create_schedule, name='create_schedule'),
     path('finalize_schedule/<int:schedule_id>/', views.finalize_schedule, name='finalize_schedule'),
     path('unfinished_tasks/<int:schedule_id>/', views.handle_unfinished_tasks, name='unfinished_tasks'),
@@ -80,6 +81,10 @@ urlpatterns = [
     path('my-timesheet/', views.my_timesheet, name='my_timesheet'),
     path('request-leave/', views.request_leave, name='request_leave'),
     path('manage-leaves/', views.manage_leaves, name='manage_leaves'),
+    path('settings/navigation/', navigation_views.configure_navigation, name='configure_navigation'),
+    path('settings/indicators/', kpi_views.configure_kpis, name='configure_kpis'),
+    path('indicators/', kpi_views.kpi_dashboard, name='kpi_dashboard'),
+    path('indicators/snapshot/', kpi_views.kpi_snapshot, name='kpi_snapshot'),
 
     #Stock URLs
     path('stock/', views.get_stock, name='etat_stocks'),

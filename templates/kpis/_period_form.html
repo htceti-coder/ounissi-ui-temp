@@ -1,0 +1,18 @@
+<form method="get" class="kpi-period" aria-label="Choisir la période des indicateurs">
+  <input type="hidden" name="period" value="{{ kpi_snapshot.period.mode }}">
+  <div class="kpi-period__modes" role="group" aria-label="Granularité des indicateurs">
+    <a href="?period=day{% if not kpi_snapshot.period.automatic %}&amp;day={{ kpi_snapshot.period.day_value }}&amp;month={{ kpi_snapshot.period.month_value }}{% endif %}"{% if kpi_snapshot.period.mode == 'day' %} aria-current="page"{% endif %}>Jour</a>
+    <a href="?period=month{% if not kpi_snapshot.period.automatic %}&amp;day={{ kpi_snapshot.period.day_value }}&amp;month={{ kpi_snapshot.period.month_value }}{% endif %}"{% if kpi_snapshot.period.mode == 'month' %} aria-current="page"{% endif %}>Mois</a>
+  </div>
+  {% if kpi_snapshot.period.mode == 'day' %}
+  <label for="kpi-day-{{ kpi_snapshot.surface }}">Jour</label>
+  <input id="kpi-day-{{ kpi_snapshot.surface }}" type="date" name="day" min="0001-01-01" max="9999-12-31" value="{{ kpi_snapshot.period.day_value }}" data-kpi-date required>
+  <input type="hidden" name="month" value="{{ kpi_snapshot.period.month_value }}" data-kpi-other-date>
+  {% else %}
+  <label for="kpi-month-{{ kpi_snapshot.surface }}">Mois</label>
+  <input id="kpi-month-{{ kpi_snapshot.surface }}" type="month" name="month" min="0001-01" max="9999-12" value="{{ kpi_snapshot.period.month_value }}" data-kpi-date required>
+  <input type="hidden" name="day" value="{{ kpi_snapshot.period.day_value }}" data-kpi-other-date>
+  {% endif %}
+  <button class="btn btn-primary" type="submit">Afficher</button>
+  <span class="kpi-period__label" data-kpi-period-label>{{ kpi_snapshot.period.label }}</span>
+</form>

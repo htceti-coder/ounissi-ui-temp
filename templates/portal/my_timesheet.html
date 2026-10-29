@@ -38,16 +38,16 @@
                     </select>
                 </div>
                 <div class="w3-col l2 m12 w3-margin-top">
-                    <button type="submit" class="w3-button w3-dark-grey w3-round w3-block">🔍 Filtrer</button>
+                    <button type="submit" class="w3-button w3-dark-grey w3-round w3-block">Filtrer</button>
                 </div>
 
                 <div class="w3-col l4 m12 w3-margin-top w3-right-align">
                      <!-- Link directing the employee to the dedicated leave request page -->
-                     <a href="{% url 'request_leave' %}" class="w3-button w3-amber w3-round">🌴 Demander un congé</a>
+                     <a href="{% url 'request_leave' %}" class="w3-button w3-amber w3-round">Demander un congé</a>
 
                      <button type="button" id="sync-btn" onclick="triggerSync()"
                             class="w3-button w3-blue w3-round w3-margin-left {% if remaining_syncs == 0 %}w3-disabled{% endif %}" {% if remaining_syncs == 0 %}disabled{% endif %}>
-                        🔄 Sync Terminal ({{ remaining_syncs }} restants)
+                        Synchroniser le terminal ({{ remaining_syncs }} restant{% if remaining_syncs > 1 %}s{% endif %})
                      </button>
                 </div>
             </div>
@@ -74,7 +74,7 @@
 
                 {% if ts.leave_type != 'NONE' %}
                     <td colspan="4" class="w3-center w3-text-amber">
-                        <b>🌴 {{ ts.get_leave_type_display }}</b>
+                        <b>{{ ts.get_leave_type_display }}</b>
                     </td>
                 {% else %}
                     <td>{{ ts.start_time|time:"H:i"|default:"--" }}</td>

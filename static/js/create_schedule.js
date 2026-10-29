@@ -310,7 +310,7 @@ function fillScheduleIntermediateTables() {
 			  const actionCell = document.createElement("td");
 			  const deleteButton = document.createElement("button");
 			  deleteButton.type = "button"
-			  deleteButton.textContent = "Delete";
+			  deleteButton.textContent = "Supprimer";
 
 			  actionCell.appendChild(deleteButton);
 			  row.appendChild(actionCell);
@@ -385,7 +385,7 @@ function fillScheduleIntermediateTables() {
             const actionCell = document.createElement("td");
             const addButton = document.createElement("button");
             addButton.type = "button"; // Set button type to prevent form submission
-            addButton.textContent = "Add"; // Button text
+            addButton.textContent = "Ajouter"; // Button text
 
             actionCell.appendChild(addButton);
             additionRow.appendChild(actionCell);
@@ -438,7 +438,7 @@ function fillScheduleIntermediateTables() {
             const actionCell = document.createElement("td");
             const deleteButton = document.createElement("button");
             deleteButton.type = "button";
-            deleteButton.textContent = "Delete";
+            deleteButton.textContent = "Supprimer";
             actionCell.appendChild(deleteButton);
             newRow.appendChild(actionCell);
             deleteButton.addEventListener("click", (event) => {
@@ -607,7 +607,7 @@ function check_validation(){
     const form = document.getElementById("main-form");
 
     if ($('#employees-select option:selected').length <= 0 || $('#tasks-select option:selected').length <= 0) {
-        alert("Selectionnez des Taches et des Employees pour la distribution!");
+        alert("Sélectionnez des tâches et des employés pour la répartition.");
 
         form.reportValidity()
         return false

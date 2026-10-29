@@ -27,7 +27,7 @@ The examples may contain names and commercially sensitive information. Treat the
 * The TRT reception chain is `Reception → Saisie → ReceptionProduit → ReceptionVignette → ReceptionPlacement`. An employee submits the reception form, which creates the next step unassigned. The manager assigns each step using the recorded supplier, invoice reference and line count. Managers can assign later steps immediately after assigning their predecessors; the employees may work in parallel, even if earlier steps are incomplete. Assignment duration is the current task's configured per-line duration × assigned line count. Reception assignments are restricted to Admins and team leaders, with employees selected from eligible members of that TRT.
 * `InvoiceHelper` is an optional preview for the later steps: Xpert may have no invoice lines yet while entry is still in progress. Assignment uses the manager-entered line count and remains possible with a visible warning if the preview is empty or unavailable. Automatic task progress can be refreshed explicitly from the employee or manager TRT screen; failed queries leave the last saved progress intact and display a warning.
 * Legacy completed receptions with a missing follow-up in the current TRT are flagged for a manager to restore explicitly. Matching prefers the same TRT and an exact supplier/reference; transferred steps can use the nearest earlier matching TRT. Existing data does not contain an explicit parent ID on every schedule item, so identical supplier/reference pairs across separate receptions can still be ambiguous.
-* Employee submission for manual reception steps is outside this change; the existing manager progress controls remain in place. The details of employee reporting and manager validation still need to be specified.
+* Admins and team leaders can update selected assigned manual tasks together on either TRT details page, including reception and other manual work. Each selected row has a preset progress selector (0, 25, 50 or 100 percent); previously saved nonstandard values remain selectable as an explicitly labelled saved value. Up to 900 rows can be submitted at once. The server continues accepting valid 0–100 integers for compatible existing clients. Automatic and unassigned items are rejected, and an invalid item rejects the entire selection. The affected task summaries are recalculated locally without querying Xpert; single-row validation remains available. Employee submission for manual reception steps is still outside this change and its reporting workflow remains to be specified.
 * The separate reception V3 models do not define how their steps map to real `Task` and `ScheduleItem` records. Its dashboard is read-only, and its bulk-assignment API returns an unavailable response until that mapping is designed. Use the existing TRT workflow for assignments.
 * A missing Xpert audit connection is not equivalent to an empty audit result. The attendance screen and its Excel export flag an unavailable audit explicitly.
 
@@ -43,6 +43,8 @@ pip install -r requirements.txt
 python manage.py test
 node tests/line_allocation.test.js  # optional JavaScript regression checks
 node tests/task_form_modal.test.js
+node tests/bulk_manual_progress.test.js
+node tests/kpi_live.test.js
 ```
 
 The tests use temporary SQLite databases and mock the Xpert connection. A live end-to-end check still requires the configured SQL Server, its queries, network access and an appropriate ODBC driver.

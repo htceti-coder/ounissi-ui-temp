@@ -6,7 +6,6 @@
  * valid. Every selector is scoped under .ounissi-app where practical.
  */
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Space+Grotesk:wght@500;600;700&display=swap");
 
 :root {
     --ui-sidebar: 274px;
@@ -195,28 +194,6 @@ body.ounissi-app {
 .brand-copy strong span { color: #34d399; }
 .brand-copy small { display: block; margin-top: 5px; overflow: hidden; color: #8192a9; font-size: 9.5px; font-weight: 700; letter-spacing: .13em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 
-.live-panel {
-    margin: 0 14px 12px;
-    padding: 12px;
-    border: 1px solid rgba(52, 211, 153, .16);
-    border-radius: 14px;
-    background: rgba(16, 185, 129, .07);
-    box-shadow: inset 0 1px rgba(255, 255, 255, .04);
-}
-
-.live-panel__head,
-.live-panel__meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.live-panel__head { color: #a7f3d0; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.live-panel__head strong { color: white; font: 600 10.5px "JetBrains Mono", monospace; letter-spacing: 0; }
-.live-panel__meta { margin-top: 8px; color: #8091a8; font-size: 10.5px; }
-.live-panel__bar { height: 4px; margin-top: 7px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .09); }
-.live-panel__bar span { display: block; width: 74%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #10b981, #5eead4); animation: live-breathe 2.4s ease-in-out infinite; }
-
 .status-dot,
 .online-dot {
     display: inline-block;
@@ -227,7 +204,6 @@ body.ounissi-app {
     box-shadow: 0 0 0 4px rgba(52, 211, 153, .1);
 }
 
-@keyframes live-breathe { 50% { opacity: .5; } }
 
 .sidebar-nav {
     flex: 1;
@@ -385,9 +361,6 @@ body.ounissi-app {
 .page-identity h1 { overflow: hidden; margin: 0; font-size: clamp(17px, 2vw, 21px); line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
 
 .topbar-tools { display: flex; align-items: center; gap: 8px; }
-.command-trigger { display: flex; width: min(280px, 22vw); height: 39px; align-items: center; gap: 8px; border: 1px solid var(--ui-border); border-radius: 12px; color: var(--ui-muted); background: var(--ui-surface); padding: 0 9px 0 12px; font: 500 11.5px "Inter", sans-serif; cursor: pointer; }
-.command-trigger span { overflow: hidden; flex: 1; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
-.command-trigger kbd, .command-search kbd { border: 0; border-radius: 6px; color: var(--ui-muted); background: var(--ui-surface-soft); padding: 3px 6px; box-shadow: inset 0 0 0 1px var(--ui-border); font: 600 9.5px "JetBrains Mono", monospace; }
 .notification-button { position: relative; }
 .notification-dot { position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; border: 1.5px solid var(--ui-surface); border-radius: 50%; background: var(--ui-rose); }
 .clock-card { display: flex; height: 39px; align-items: center; gap: 8px; border-radius: 12px; color: #dce6f2; background: var(--ui-navy-900); padding: 0 11px; }
@@ -397,17 +370,6 @@ body.ounissi-app {
 .clock-card small { margin-top: 1px; color: #8292a8; font-size: 8.5px; text-transform: capitalize; }
 .legacy-navbar-slot:empty { display: none; }
 .legacy-navbar-slot { color: var(--ui-muted); font-size: 11px; }
-
-.activity-rail { display: flex; min-height: 30px; align-items: center; gap: 10px; overflow: hidden; border-top: 1px solid var(--ui-border); background: var(--ui-surface-soft); padding: 0 clamp(16px, 2.2vw, 28px); }
-.activity-rail__label { display: flex; align-items: center; gap: 7px; color: var(--ui-emerald-strong); font: 800 9px "Inter", sans-serif; letter-spacing: .12em; }
-.activity-rail__viewport { position: relative; overflow: hidden; flex: 1; }
-.activity-rail__track { display: flex; width: max-content; gap: 32px; animation: rail-scroll 42s linear infinite; color: var(--ui-muted); font-size: 10.5px; white-space: nowrap; }
-.activity-rail__track span { position: relative; }
-.activity-rail__track span:not(:last-child)::after { position: absolute; right: -18px; color: var(--ui-border-strong); content: "•"; }
-.activity-rail__track b { color: var(--ui-text); }
-.activity-rail:hover .activity-rail__track { animation-play-state: paused; }
-
-@keyframes rail-scroll { to { transform: translateX(-42%); } }
 
 /* ---------- Main content ---------- */
 
@@ -784,26 +746,6 @@ body.ounissi-app {
 .loading-spinner { width: 43px; height: 43px; border: 3px solid rgba(255, 255, 255, .12); border-top-color: #34d399; border-radius: 50%; animation: ui-spin .75s linear infinite; }
 @keyframes ui-spin { to { transform: rotate(360deg); } }
 
-/* ---------- Command palette ---------- */
-
-.command-palette { position: fixed; z-index: 4500; inset: 0; display: none; align-items: flex-start; justify-content: center; padding: 9vh 16px 20px; }
-.command-palette.is-open { display: flex; }
-.command-backdrop { position: absolute; inset: 0; background: rgba(2, 6, 23, .62); backdrop-filter: blur(7px); }
-.command-dialog { position: relative; width: min(620px, 100%); overflow: hidden; border: 1px solid var(--ui-border); border-radius: 18px; color: var(--ui-text); background: var(--ui-surface); box-shadow: 0 35px 120px -30px rgba(2, 6, 23, .85); animation: command-enter 200ms cubic-bezier(.22, 1, .36, 1); }
-@keyframes command-enter { from { opacity: 0; transform: translateY(-10px) scale(.98); } }
-.command-search { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--ui-border); padding: 12px 14px; }
-.command-search > i { color: var(--ui-muted-soft); }
-.command-search input { min-height: 34px !important; flex: 1; border: 0 !important; background: transparent !important; padding: 0 !important; box-shadow: none !important; font-size: 13.5px !important; }
-.command-heading { padding: 11px 14px 7px; color: var(--ui-muted-soft); font-size: 9.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.command-results { max-height: min(410px, 55vh); overflow-y: auto; padding: 0 8px 9px; }
-.command-result { display: flex; align-items: center; gap: 10px; border-radius: 11px; color: var(--ui-text) !important; padding: 9px 10px; }
-.command-result:hover, .command-result.is-selected { background: var(--ui-surface-soft); }
-.command-result i { display: grid; width: 29px; height: 29px; place-items: center; border-radius: 8px; color: var(--ui-emerald-strong); background: #d1fae5; }
-.command-result span { flex: 1; font-size: 11.5px; font-weight: 700; }
-.command-result small { color: var(--ui-muted-soft); font: 500 9.5px "JetBrains Mono", monospace; }
-.command-empty { padding: 25px; color: var(--ui-muted); text-align: center; font-size: 12px; }
-.command-help { display: flex; gap: 14px; border-top: 1px solid var(--ui-border); color: var(--ui-muted-soft); background: var(--ui-surface-soft); padding: 8px 14px; font-size: 9.5px; }
-
 /* ---------- Toasts ---------- */
 
 .toast-region { position: fixed; z-index: 4400; right: 18px; bottom: 18px; display: flex; width: min(360px, calc(100vw - 36px)); flex-direction: column; gap: 8px; pointer-events: none; }
@@ -818,7 +760,6 @@ body.ounissi-app {
 .sidebar-overlay { position: fixed; z-index: 1035; inset: 0; visibility: hidden; background: rgba(2, 6, 23, .58); opacity: 0; backdrop-filter: blur(4px); transition: opacity var(--ui-speed), visibility var(--ui-speed); }
 
 @media (max-width: 1199px) {
-    .command-trigger { width: 190px; }
     .clock-card { display: none; }
 }
 
@@ -828,8 +769,6 @@ body.ounissi-app {
     body.sidebar-open .sidebar-overlay { visibility: visible; opacity: 1; }
     .app-stage { margin-left: 0; }
     .sidebar-toggle { display: inline-grid !important; }
-    .command-trigger { width: 39px; justify-content: center; padding: 0; }
-    .command-trigger span, .command-trigger kbd { display: none; }
 }
 
 @media (max-width: 767.98px) {
@@ -838,7 +777,6 @@ body.ounissi-app {
     .page-identity h1 { font-size: 16px; }
     .topbar-tools { gap: 5px; }
     .topbar-tools .notification-button { display: none; }
-    .activity-rail { padding: 0 13px; }
     .app-main { padding: 13px; }
     .page-intro { flex-direction: column; }
     .app-footer { align-items: flex-start; flex-direction: column; }
@@ -849,9 +787,7 @@ body.ounissi-app {
 @media (max-width: 480px) {
     .app-sidebar { width: min(86vw, 300px); }
     .topbar-tools [data-theme-toggle] { display: none; }
-    .activity-rail__label { display: none; }
     .app-main { padding: 10px; }
-    .command-palette { padding: 5vh 10px; }
 }
 
 /* ---------- Dark mode corrections for third-party components ---------- */
@@ -873,7 +809,7 @@ html[data-theme="dark"] .ounissi-app .progress-value-label { color: var(--ui-mut
 }
 
 @media print {
-    .app-sidebar, .app-topbar, .sidebar-overlay, .command-palette, .toast-region, .app-footer { display: none !important; }
+    .app-sidebar, .app-topbar, .sidebar-overlay, .toast-region, .app-footer { display: none !important; }
     .app-stage { margin: 0 !important; }
     .app-main { max-width: none; padding: 0; }
     body.ounissi-app { background: white !important; }
@@ -881,3 +817,29 @@ html[data-theme="dark"] .ounissi-app .progress-value-label { color: var(--ui-mut
 }
 /* A form action must stay hidden while its modal is loading or showing an error. */
 .ounissi-app [data-task-form-submit][hidden] { display: none !important; }
+
+/* Manager selection and progress entry for manual TRT tasks. */
+.bulk-manual-panel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 24px;
+    margin: 10px 0 16px;
+    padding: 16px 18px;
+    border: 1px solid var(--ui-border);
+    border-radius: 14px;
+    background: var(--ui-surface-soft);
+}
+.bulk-manual-panel__intro { flex: 1 1 300px; }
+.bulk-manual-panel__intro strong { color: var(--ui-text); font-size: 13px; }
+.bulk-manual-panel__intro p { margin: 3px 0 0; color: var(--ui-muted); font-size: 11px; }
+.bulk-manual-panel form { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.bulk-manual-count { color: var(--ui-muted); font-size: 11px; font-weight: 700; }
+.bulk-manual-error { flex: 1 0 100%; margin: 0; color: #be123c; font-weight: 700; }
+.bulk-manual-bottom { margin: 10px 0 18px; }
+.ounissi-app select.manual-progress-rate { width: auto; min-width: 95px; }
+.ounissi-app select.manual-progress-rate[aria-invalid="true"] { border-color: #e11d48; }
+.ounissi-app [data-manual-bulk-submit][hidden], .bulk-manual-error[hidden] { display: none !important; }
+.ounissi-app [data-manual-bulk-submit]:disabled { cursor: not-allowed; opacity: .5; transform: none; }
+.bulk-page-select { display: inline-flex; align-items: center; gap: 5px; margin: 0; white-space: nowrap; }
+.bulk-page-select[hidden] { display: none; }

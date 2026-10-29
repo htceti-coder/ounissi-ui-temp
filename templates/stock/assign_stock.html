@@ -23,7 +23,7 @@
     <tbody>
       {% for prefix, emplacements in grouped_emplacements.items %}
       <tr data-group="{{ prefix }}">
-        <td><button type="button" class="toggle-button" aria-expanded="true" aria-label="Afficher ou masquer le groupe {{ prefix|default:'Tous' }}">▲</button> {{ prefix|default:'Tous' }}</td>
+        <td><button type="button" class="toggle-button" aria-expanded="true" aria-label="Afficher ou masquer le groupe {{ prefix|default:'Tous' }}">Masquer</button> {{ prefix|default:'Tous' }}</td>
         <td><strong>Affectation du groupe</strong></td>
         <td><select class="group-employee" aria-label="Employé du groupe {{ prefix|default:'Tous' }}">
           <option value="">---------</option>{% for employee in employees %}<option value="{{ employee.id }}">{{ employee }}</option>{% endfor %}

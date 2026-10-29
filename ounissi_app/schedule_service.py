@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.apps import apps
 from django.db import connection, transaction
+from django.core.exceptions import ValidationError
 from django.db.models import Sum, F, FloatField, Q
 from django.db.models.functions import Cast
 from accounts.models import Employee
@@ -303,6 +304,56 @@ def update_schedule_progress(schedule, employee=None):
             sched_task.delete()
 
     return {'attempted': attempted, 'failed': failed}
+
+
+def update_manual_progress(schedule, updates):
+    """Atomically update only assigned manual items from one TRT.
+
+    ``updates`` contains validated (item_id, integer percentage) pairs. Automatic
+    items are intentionally excluded; their progress belongs to their query.
+    """
+    with transaction.atomic():
+        # Lock the TRT and selected rows before checking their current type and
+        # ownership. This avoids accepting a stale or cross-TRT selection.
+        Schedule.objects.select_for_update().get(pk=schedule.pk)
+        item_ids = [item_id for item_id, _ in updates]
+        items = list(ScheduleItem.objects.select_for_update().filter(pk__in=item_ids)
+                     .select_related('task').prefetch_related('task__progress_query').order_by('pk'))
+        if len(items) != len(item_ids) or any(
+            item.schedule_id != schedule.pk or not item.employee_id or
+            (item.task.progress_query_id and item.task.progress_query.query != 'N/A')
+            for item in items
+        ):
+            raise ValidationError('La sélection doit contenir uniquement des tâches manuelles affectées de ce TRT. Actualisez la page et réessayez.')
+
+        rates = dict(updates)
+        for item in items:
+            item.progression_rate = rates[item.pk]
+        ScheduleItem.objects.bulk_update(items, ['progression_rate'])
+
+        # Refresh only aggregates for affected task types. This does not run any
+        # Xpert query or change assigned time / progress-line counts.
+        task_ids = {item.task_id for item in items}
+        items_by_task = {}
+        microsecond = timedelta(microseconds=1)
+        for task_id, rate, duration in ScheduleItem.objects.filter(
+            schedule=schedule, task_id__in=task_ids,
+        ).values_list('task_id', 'progression_rate', 'assigned_time'):
+            # Integer microseconds avoid floating-point rounding a true 29% to 28%.
+            items_by_task[task_id] = items_by_task.get(task_id, 0) + (rate or 0) * (duration // microsecond)
+        for sched_task in ScheduleTask.objects.select_for_update().filter(schedule=schedule, task_id__in=task_ids):
+            total = (sched_task.total_assigned_time or timedelta()) // microsecond
+            if total <= 0:
+                continue  # Preserve legacy empty aggregates; never delete them here.
+            weighted = items_by_task.get(sched_task.task_id, 0)
+            # Truncate toward zero, including for malformed legacy negative rates.
+            sched_task.completion = weighted // total if weighted >= 0 else -((-weighted) // total)
+            if sched_task.completion >= 100:
+                sched_task.status = 2
+            elif sched_task.status in (0, 1, 2):
+                sched_task.status = 1 if sched_task.completion > 0 else 0
+            sched_task.save(update_fields=['completion', 'status'])
+    return len(items)
 
 
 # --- UTILITY HELPERS ---

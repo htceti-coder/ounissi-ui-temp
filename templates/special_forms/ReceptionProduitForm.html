@@ -10,9 +10,9 @@
         <a><strong>{{ original_task.number_of_lines }}</strong></a>
     </div>
     <div>
-        <label for="employee1">Employee 1:</label>
+        <label for="employee1">Employé 1 :</label>
         <select id="employee1" name="employee1" onchange="distributeLines({{ items_list }})" required>
-            <option value="">Selectioner un Employee</option>
+            <option value="">Sélectionner un employé</option>
             {% for employee in model_employees %}
             <option value="{{ employee.employee.id }}">{{ employee.employee }}</option>
             {% endfor %}
@@ -25,9 +25,9 @@
 
     </div>
     <div>
-        <label for="employee2">Employee 2:</label>
+        <label for="employee2">Employé 2 :</label>
         <select id="employee2" name="employee2" onchange="distributeLines({{ items_list }})">
-            <option value="">Selectioner un Employee</option>
+            <option value="">Sélectionner un employé</option>
             {% for employee in model_employees %}
             <option value="{{ employee.employee.id }}">{{ employee.employee }}</option>
             {% endfor %}
@@ -38,9 +38,9 @@
         <span><a>Durée affectée :</a><a id="number2">--:--:--</a></span>
     </div>
     <div>
-        <label for="employee3">Employee 3:</label>
+        <label for="employee3">Employé 3 :</label>
         <select id="employee3" name="employee3" onchange="distributeLines({{ items_list }})">
-            <option value="">Selectioner un Employee</option>
+            <option value="">Sélectionner un employé</option>
             {% for employee in model_employees %}
             <option value="{{ employee.employee.id }}">{{ employee.employee }}</option>
             {% endfor %}

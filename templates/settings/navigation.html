@@ -1,0 +1,42 @@
+{% extends 'base2.html' %}
+{% block title %}Configuration du menu{% endblock %}
+{% block content %}
+<header class="settings-page-header">
+  <div>
+    <p class="settings-eyebrow">Administration</p>
+    <h1>Configuration du menu</h1>
+    <p>Choisissez les liens visibles pour chaque niveau. Les changements s’appliquent à tous les utilisateurs de ce niveau.</p>
+  </div>
+</header>
+<div class="app-alert app-alert--info" role="note">
+  <i class="fa fa-info-circle" aria-hidden="true"></i>
+  <span>La visibilité du menu ne modifie pas les autorisations d’accès aux pages. Les droits existants restent applicables. Le lien de configuration reste visible pour les administrateurs.</span>
+</div>
+<form method="post" class="navigation-settings-form">
+  {% csrf_token %}
+  <div class="navigation-settings-table-wrap" role="region" aria-label="Visibilité des liens du menu" tabindex="0">
+    <table class="navigation-settings-table">
+      <thead>
+        <tr><th scope="col">Élément du menu</th><th scope="col">Utilisateurs</th><th scope="col">Responsables d’équipe</th><th scope="col">Administrateurs</th></tr>
+      </thead>
+      <tbody>
+      {% for section in navigation_settings %}
+        <tr class="navigation-settings-section"><th scope="rowgroup" colspan="4">{{ section.title }}</th></tr>
+        {% for item in section.items %}
+        <tr>
+          <th scope="row">{{ item.label }}{% if item.staff_only %} <small>(compte staff requis)</small>{% endif %}<input type="hidden" name="item_{{ item.key }}" value="1"></th>
+          {% for cell in item.cells %}
+          <td><input type="checkbox" name="{{ cell.name }}" value="1" aria-label="{{ item.label }} : {{ cell.role_label }}" {% if cell.checked %}checked{% endif %}></td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="navigation-settings-actions">
+    <button type="submit" name="action" value="save" class="btn btn-primary">Enregistrer les réglages</button>
+    <button type="submit" name="action" value="reset" class="btn btn-outline-secondary" formnovalidate>Restaurer les valeurs par défaut</button>
+  </div>
+</form>
+{% endblock %}

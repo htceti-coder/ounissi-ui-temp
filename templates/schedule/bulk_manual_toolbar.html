@@ -1,0 +1,14 @@
+<section class="bulk-manual-panel" aria-label="Validation groupée des tâches manuelles">
+  <div class="bulk-manual-panel__intro">
+    <strong>Validation groupée</strong>
+    <p>Cochez les tâches et choisissez une progression : 0, 25, 50 ou 100 %. Maximum : 900 tâches. <span data-manual-enhanced-note hidden>« Page » sélectionne les lignes affichées ; votre sélection reste active en changeant de page ou de filtre.</span><noscript>Cochez chaque tâche individuellement.</noscript></p>
+  </div>
+  <form id="manual-progress-form" method="post" action="{% url 'bulk_manual_progress' schedule_id=selected_schedule.id %}" data-manual-progress-form>
+    {% csrf_token %}
+    <input type="hidden" name="source" value="{{ source }}">
+    <div data-manual-payload></div>
+    <span class="bulk-manual-count" data-manual-count aria-live="polite" hidden>0 tâche sélectionnée</span>
+    {% include 'schedule/bulk_manual_submit.html' %}
+  </form>
+  <p class="bulk-manual-error" data-manual-error role="alert" hidden></p>
+</section>

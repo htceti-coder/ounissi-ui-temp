@@ -9,6 +9,41 @@ from accounts.models import Employee, Rank
 User = get_user_model()
 
 
+class NavigationVisibility(models.Model):
+    """Stored overrides for the sidebar; missing rows use the built-in defaults."""
+    item_key = models.CharField(max_length=80, unique=True, verbose_name='Élément du menu')
+    show_user = models.BooleanField(default=False, verbose_name='Utilisateur')
+    show_leader = models.BooleanField(default=False, verbose_name='Responsable d’équipe')
+    show_admin = models.BooleanField(default=False, verbose_name='Administrateur')
+
+    class Meta:
+        verbose_name = 'Visibilité du menu'
+        verbose_name_plural = 'Visibilité du menu'
+
+    def __str__(self):
+        return self.item_key
+
+
+class KPIDisplaySetting(models.Model):
+    """Per-role presentation overrides; missing entries use the KPI registry defaults."""
+    role = models.CharField(max_length=16)
+    metric_key = models.CharField(max_length=80)
+    show_live = models.BooleanField(default=False)
+    show_dashboard = models.BooleanField(default=False)
+    presentation = models.CharField(max_length=16, default='value')
+    position = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['role', 'metric_key'], name='unique_kpi_role_metric')
+        ]
+        verbose_name = 'Affichage des indicateurs'
+        verbose_name_plural = 'Affichage des indicateurs'
+
+    def __str__(self):
+        return f'{self.role}: {self.metric_key}'
+
+
 class Timesheet(models.Model):
     # Encapsulated choices using TextChoices
     class LeaveType(models.TextChoices):

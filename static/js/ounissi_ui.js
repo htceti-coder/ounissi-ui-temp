@@ -15,8 +15,6 @@
     var root = document.documentElement;
     var body = document.body;
     var storagePrefix = "ounissi.ui.";
-    var activeCommandIndex = 0;
-    var commandItems = [];
 
     function ready(callback) {
         if (document.readyState === "loading") {
@@ -179,15 +177,14 @@
         if (!topTitle || !content) return;
 
         var heading = select("h1, h2", content);
-        var title = heading && heading.textContent.trim();
-        if (!title) {
-            title = (document.title || "OUNISSI OS").split("|")[0].trim();
-        }
-
+        var documentTitle = (document.title || "").split("|")[0].trim();
+        var title = documentTitle && documentTitle !== "OUNISSI OS" && documentTitle !== "My Site" ? documentTitle : (heading && heading.textContent.trim());
         topTitle.textContent = title || "Espace de travail";
         if (kicker) {
-            var path = normalizePath(window.location.pathname);
-            kicker.textContent = path === "/" ? "Tableau de bord" : path.replace(/^\//, "").replace(/\//g, " · ");
+            var activeLink = select(".sidebar-nav .nav-link.is-active");
+            var section = activeLink && activeLink.closest(".nav-section");
+            var sectionTitle = section && select(".nav-section__title", section);
+            kicker.textContent = sectionTitle ? sectionTitle.textContent.trim() : "OUNISSI";
         }
     }
 
@@ -228,122 +225,25 @@
         }
     }
 
-    /* ------------------------------------------------------------------ */
-    /* Command palette                                                    */
-    /* ------------------------------------------------------------------ */
-
-    function collectCommands() {
-        var seen = {};
-        commandItems = selectAll(".sidebar-nav .nav-link").map(function (link) {
-            var label = (link.textContent || "").replace(/LIVE/g, "").trim();
-            var href = link.getAttribute("href");
-            if (!href || seen[href]) return null;
-            seen[href] = true;
-            var icon = select("i", link);
-            return {
-                label: label,
-                href: href,
-                path: normalizePath(href),
-                icon: icon ? icon.className : "fa fa-link"
-            };
-        }).filter(Boolean);
-    }
-
-    function openCommandPalette() {
-        var palette = select("#command-palette");
-        var input = select("#command-input");
-        if (!palette || !input) return;
-        palette.classList.add("is-open");
-        palette.setAttribute("aria-hidden", "false");
-        body.style.overflow = "hidden";
-        input.value = "";
-        activeCommandIndex = 0;
-        renderCommands("");
-        window.setTimeout(function () { input.focus(); }, 20);
-    }
-
-    function closeCommandPalette() {
-        var palette = select("#command-palette");
-        if (!palette) return;
-        palette.classList.remove("is-open");
-        palette.setAttribute("aria-hidden", "true");
-        body.style.overflow = "";
-    }
-
-    function renderCommands(query) {
-        var container = select("#command-results");
-        if (!container) return;
-        var normalized = (query || "").toLowerCase().trim();
-        var matches = commandItems.filter(function (item) {
-            return !normalized || item.label.toLowerCase().indexOf(normalized) !== -1 || item.path.toLowerCase().indexOf(normalized) !== -1;
-        });
-
-        if (activeCommandIndex >= matches.length) activeCommandIndex = Math.max(0, matches.length - 1);
-        container.innerHTML = "";
-
-        if (!matches.length) {
-            var empty = document.createElement("div");
-            empty.className = "command-empty";
-            empty.textContent = "Aucune page ne correspond à cette recherche.";
-            container.appendChild(empty);
-            return;
-        }
-
-        matches.forEach(function (item, index) {
-            var link = document.createElement("a");
-            link.href = item.href;
-            link.className = "command-result" + (index === activeCommandIndex ? " is-selected" : "");
-            link.setAttribute("data-command-index", String(index));
-
-            var icon = document.createElement("i");
-            icon.className = item.icon;
-            var label = document.createElement("span");
-            label.textContent = item.label;
-            var path = document.createElement("small");
-            path.textContent = item.path;
-            link.appendChild(icon);
-            link.appendChild(label);
-            link.appendChild(path);
-            container.appendChild(link);
-        });
-    }
-
-    function moveCommandSelection(direction) {
-        var results = selectAll("#command-results .command-result");
-        if (!results.length) return;
-        activeCommandIndex = (activeCommandIndex + direction + results.length) % results.length;
-        results.forEach(function (result, index) {
-            result.classList.toggle("is-selected", index === activeCommandIndex);
-        });
-        results[activeCommandIndex].scrollIntoView({ block: "nearest" });
-    }
-
-    function initCommandPalette() {
-        collectCommands();
-        var input = select("#command-input");
-        selectAll("[data-command-open]").forEach(function (button) { button.addEventListener("click", openCommandPalette); });
-        selectAll("[data-command-close]").forEach(function (button) { button.addEventListener("click", closeCommandPalette); });
-        if (input) input.addEventListener("input", function () { activeCommandIndex = 0; renderCommands(input.value); });
-
-        document.addEventListener("keydown", function (event) {
-            var palette = select("#command-palette");
-            var open = palette && palette.classList.contains("is-open");
-            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+    /* Schedule tablists use roving focus and retain their existing click handlers. */
+    function initTabKeyboard() {
+        selectAll(".tabs[role='tablist']").forEach(function (list) {
+            list.addEventListener("keydown", function (event) {
+                var current = event.target.closest("[role='tab']");
+                if (!current) return;
+                var tabs = selectAll("[role='tab']", list);
+                var index = tabs.indexOf(current);
+                if (index < 0 || !tabs.length) return;
+                var next;
+                if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+                else if (event.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+                else if (event.key === "Home") next = 0;
+                else if (event.key === "End") next = tabs.length - 1;
+                else return;
                 event.preventDefault();
-                open ? closeCommandPalette() : openCommandPalette();
-                return;
-            }
-            if (!open) return;
-            if (event.key === "Escape") closeCommandPalette();
-            if (event.key === "ArrowDown") { event.preventDefault(); moveCommandSelection(1); }
-            if (event.key === "ArrowUp") { event.preventDefault(); moveCommandSelection(-1); }
-            if (event.key === "Enter") {
-                var selected = select("#command-results .command-result.is-selected");
-                if (selected) {
-                    event.preventDefault();
-                    window.location.href = selected.href;
-                }
-            }
+                tabs[next].focus();
+                tabs[next].click();
+            });
         });
     }
 
@@ -626,53 +526,25 @@
 
     function enhanceTables(scope) {
         selectAll("table", scope || document).forEach(function (table) {
-            if (table.dataset.uiEnhanced === "true") return;
+            // DataTables, pre-existing responsive regions and explicit opt-outs
+            // already manage their own overflow. Keep their DOM unchanged.
+            if (table.closest(".dataTables_wrapper, .table-scroll-shell, .w3-responsive, .table-responsive, .navigation-settings-table-wrap") ||
+                table.hasAttribute("data-no-shell") || table.classList.contains("ui-plain-table") ||
+                table.classList.contains("collapse")) return;
 
-            // Never touch tables that are already managed by a plugin or that
-            // live inside a modal — create_schedule.js and the reception forms
-            // build rows dynamically and rely on the original DOM position.
-            if (
-                table.closest(".dataTables_wrapper") ||
-                table.closest(".table-scroll-shell") ||
-                table.closest(".modal") ||
-                table.closest(".w3-modal") ||
-                table.hasAttribute("data-no-shell") ||
-                table.classList.contains("ui-plain-table")
-            ) {
-                table.dataset.uiEnhanced = "true";
-                return;
-            }
-
-            // Only add a scroll container when the table really is wider than
-            // its parent. Matrix tables (stock / emplacements) must keep their
-            // natural layout and must NOT be forced into a horizontal scroller.
-            var parent = table.parentElement;
-            var needsShell = false;
-            if (parent) {
-                var available = parent.clientWidth || document.documentElement.clientWidth;
-                if (table.scrollWidth > available + 2) needsShell = true;
-            }
-
-            if (needsShell) {
-                var shell = document.createElement("div");
-                shell.className = "table-scroll-shell";
-                table.parentNode.insertBefore(shell, table);
-                shell.appendChild(table);
-            }
-            table.dataset.uiEnhanced = "true";
+            // A stable scroll container handles tables added in dialogs, hidden
+            // tabs and tables that become wide only after the viewport shrinks.
+            var shell = document.createElement("div");
+            shell.className = "table-scroll-shell";
+            shell.setAttribute("role", "region");
+            shell.setAttribute("aria-label", table.getAttribute("aria-label") || "Tableau défilable");
+            shell.setAttribute("tabindex", "0");
+            table.parentNode.insertBefore(shell, table);
+            shell.appendChild(table);
         });
     }
 
-    /* Re-check table overflow after fonts/layout settle and on resize. */
     function reflowTables() {
-        selectAll(".table-scroll-shell > table").forEach(function (table) {
-            var shell = table.parentElement;
-            if (!shell) return;
-            if (table.scrollWidth <= shell.clientWidth + 2) {
-                shell.replaceWith(table);
-                table.dataset.uiEnhanced = "processed";
-            }
-        });
         enhanceTables(document);
     }
 
@@ -695,6 +567,13 @@
             track.dataset.uiEnhanced = "true";
         });
     }
+
+    UI.enhanceContent = function (scope) {
+        initializeChosen(scope);
+        initializeDataTables(scope);
+        enhanceTables(scope);
+        enhanceProgressBars(scope);
+    };
 
     function colorEmptyCells(scope) {
         selectAll("td", scope || document).forEach(function (cell) {
@@ -894,13 +773,13 @@
         body = document.body;
         initTheme();
         initSidebar();
-        organizeExtraNavLinks();      // must run before active-link detection & the palette index
+        organizeExtraNavLinks();      // must run before active-link detection
         initActiveNavigation();
         derivePageIdentity();
         updateClocks();
         window.setInterval(updateClocks, 1000);
 
-        initCommandPalette();
+        initTabKeyboard();
         initPopupLinks();             // before initRequestFeedback so preventDefault is honoured
         initializeChosen(document);
         initializeDataTables(document);

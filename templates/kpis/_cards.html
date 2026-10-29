@@ -1,0 +1,39 @@
+{% load l10n %}
+{% if kpi_snapshot.groups %}
+{% for group in kpi_snapshot.groups %}
+<section class="kpi-group" data-kpi-group="{{ group.key }}" aria-labelledby="kpi-group-{{ kpi_snapshot.surface }}-{{ group.key }}">
+  <header class="kpi-group__header">
+    <h3 id="kpi-group-{{ kpi_snapshot.surface }}-{{ group.key }}">{{ group.title }}</h3>
+    {% if group.key == 'team' %}<p>Membres actuellement rattachés à votre équipe · données de la période sélectionnée.</p>{% endif %}
+  </header>
+  <div class="kpi-grid">
+    {% for card in group.cards %}
+    <article class="kpi-card{% if card.presentation == 'details' %} kpi-card--details{% endif %}" data-kpi-key="{{ card.key }}">
+      <div class="kpi-card__heading">
+        <h4>{{ card.label }}</h4>
+        <span class="kpi-card__icon" aria-hidden="true"><i class="fa {{ card.icon }}"></i></span>
+      </div>
+      <p class="kpi-card__value"><strong>{{ card.value }}</strong>{% if card.unit %} <span>{{ card.unit }}</span>{% endif %}</p>
+      {% if card.bar_value is not None %}
+      <progress class="kpi-progress" value="{{ card.bar_value|unlocalize }}" max="100" aria-label="{{ card.label }}" aria-valuetext="{{ card.value }} pour cent">{{ card.value }} %</progress>
+      {% endif %}
+      {% if card.detail %}<p class="kpi-card__detail">{{ card.detail }}</p>{% endif %}
+      {% if card.warning %}<p class="kpi-card__warning"><i class="fa fa-info-circle" aria-hidden="true"></i> {{ card.warning }}</p>{% endif %}
+      {% if card.presentation == 'details' and card.rows %}
+      <ul class="kpi-records" aria-label="{{ card.label }}">
+        {% for row in card.rows %}
+        <li>
+          <div><strong>{{ row.primary }}</strong><small>{{ row.secondary }}</small></div>
+          <span class="kpi-records__status kpi-records__status--{{ row.kind }}">{{ row.status }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+{% else %}
+<p class="kpi-empty">Aucun indicateur n’est activé pour cet emplacement.</p>
+{% endif %}

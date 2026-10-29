@@ -67,6 +67,9 @@
             // The server returns either the requested same-origin form or a safe
             // HTML error fragment with a useful configuration message.
             container.innerHTML = html;
+            if (typeof window !== 'undefined' && window.OunissiUI && window.OunissiUI.enhanceContent) {
+                window.OunissiUI.enhanceContent(container);
+            }
             if (footerSubmit) footerSubmit.hidden = !container.querySelector('#modelForm');
         } catch (error) {
             if (request === activeRequest) {
