@@ -83,6 +83,8 @@ urlpatterns = [
     path('manage-leaves/', views.manage_leaves, name='manage_leaves'),
     path('settings/navigation/', navigation_views.configure_navigation, name='configure_navigation'),
     path('settings/indicators/', kpi_views.configure_kpis, name='configure_kpis'),
+    path('settings/indicators/new/', kpi_views.edit_custom_kpi, name='create_custom_kpi'),
+    path('settings/indicators/<int:kpi_id>/edit/', kpi_views.edit_custom_kpi, name='edit_custom_kpi'),
     path('indicators/', kpi_views.kpi_dashboard, name='kpi_dashboard'),
     path('indicators/snapshot/', kpi_views.kpi_snapshot, name='kpi_snapshot'),
 

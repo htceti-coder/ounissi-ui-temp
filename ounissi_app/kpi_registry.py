@@ -5,7 +5,7 @@ or team data scope enforced by kpi_service.
 """
 from dataclasses import dataclass
 
-from .models import KPIDisplaySetting
+from .models import CustomKPI, KPIDisplaySetting
 from .navigation import ADMIN, LEADER, ROLES, USER
 
 ALL = (USER, LEADER, ADMIN)
@@ -26,6 +26,7 @@ class Indicator:
     default_presentation: str
     position: int
     group: str
+    custom: object = None
 
 
 INDICATORS = (
@@ -45,11 +46,51 @@ INDICATORS = (
 )
 
 
-def settings_for(role):
+PERCENT_CALCULATIONS = frozenset((CustomKPI.Calculation.WEIGHTED_PROGRESS,
+                                  CustomKPI.Calculation.COMPLETION_RATE,
+                                  CustomKPI.Calculation.AVERAGE_PROGRESS))
+
+
+def custom_metric_key(kpi_id, scope):
+    return f'custom_{kpi_id}_{scope}'
+
+
+def indicator_definitions(*, for_update=False):
+    """Predefined and active custom KPIs; every custom variant is hidden by default.
+
+    Writers may lock definitions inside their transaction to validate a
+    visibility form against the same revisions they are about to update.
+    """
+    result = list(INDICATORS)
+    custom_kpis = CustomKPI.objects.filter(is_active=True).prefetch_related('tasks', 'queries')
+    if for_update:
+        custom_kpis = custom_kpis.select_for_update()
+    for custom in custom_kpis:
+        scopes = ('personal', 'team') if custom.scope == CustomKPI.Scope.BOTH else (custom.scope,)
+        for scope in scopes:
+            # A corrupt definition cannot manufacture an unrecognised scope or
+            # expose a team KPI to an ordinary user.
+            if scope not in ('personal', 'team'):
+                continue
+            team = scope == 'team'
+            presentation = ('value', 'bar') if custom.target or custom.calculation in PERCENT_CALCULATIONS else ('value',)
+            prefix = 'Équipe' if team else 'Personnel'
+            description = f"{prefix} · {custom.get_calculation_display()}"
+            if custom.description:
+                description += f' · {custom.description}'
+            result.append(Indicator(
+                custom_metric_key(custom.pk, scope), f'{custom.name} · {prefix.lower()}', description,
+                'fa-bar-chart', TEAM_ROLES if team else ALL, (), (), presentation, 'value', 500,
+                'team' if team else 'trt', custom,
+            ))
+    return result
+
+
+def settings_for(role, definitions=None):
     """Return valid effective settings in stable display order for one role."""
     stored = {s.metric_key: s for s in KPIDisplaySetting.objects.filter(role=role)}
     result = []
-    for item in INDICATORS:
+    for item in definitions if definitions is not None else indicator_definitions():
         if role not in item.roles:
             continue
         setting = stored.get(item.key)
@@ -66,9 +107,10 @@ def settings_for(role):
 
 def settings_groups():
     groups = []
+    definitions = indicator_definitions()
     for role, label in ROLES:
         rows = []
-        for setting in settings_for(role):
+        for setting in settings_for(role, definitions):
             item = setting['definition']
             prefix = f'{role}_{item.key}'
             rows.append({**setting, 'prefix': prefix,

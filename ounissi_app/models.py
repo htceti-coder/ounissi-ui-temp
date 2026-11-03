@@ -44,6 +44,73 @@ class KPIDisplaySetting(models.Model):
         return f'{self.role}: {self.metric_key}'
 
 
+class CustomKPI(models.Model):
+    """Admin-defined indicator over already-saved, authorised TRT task data."""
+
+    class Scope(models.TextChoices):
+        PERSONAL = 'personal', 'Personnel'
+        TEAM = 'team', 'Équipe dirigée'
+        BOTH = 'both', 'Personnel et équipe'
+
+    class Selection(models.TextChoices):
+        ALL = 'all', 'Toutes les tâches affectées'
+        SELECTED = 'selected', 'Tâches et/ou requêtes sélectionnées'
+
+    class Kind(models.TextChoices):
+        ALL = 'all', 'Toutes'
+        MANUAL = 'manual', 'Manuelles'
+        AUTOMATIC = 'automatic', 'Automatiques'
+
+    class State(models.TextChoices):
+        ALL = 'all', 'Tous les états'
+        COMPLETE = 'complete', 'Terminées'
+        INCOMPLETE = 'incomplete', 'Non terminées'
+
+    class Calculation(models.TextChoices):
+        WEIGHTED_PROGRESS = 'weighted_progress', 'Progression pondérée (en %)'
+        WEIGHTED_SCORE = 'weighted_score', 'Score réalisé (en points)'
+        ASSIGNED_TASKS = 'assigned_tasks', 'Nombre de tâches affectées'
+        COMPLETED_TASKS = 'completed_tasks', 'Nombre de tâches terminées'
+        COMPLETION_RATE = 'completion_rate', 'Taux de tâches terminées (en %)'
+        AVERAGE_PROGRESS = 'average_progress', 'Moyenne simple des progressions (en %)'
+        ASSIGNED_TIME = 'assigned_time', 'Temps affecté'
+        SAVED_LINES = 'saved_lines', 'Lignes enregistrées des tâches automatiques'
+
+    name = models.CharField(max_length=100, verbose_name='Nom de l’indicateur')
+    description = models.TextField(blank=True, max_length=500, verbose_name='Description')
+    scope = models.CharField(max_length=16, choices=Scope.choices, default=Scope.PERSONAL, verbose_name='Périmètre')
+    calculation = models.CharField(max_length=32, choices=Calculation.choices,
+                                   default=Calculation.WEIGHTED_PROGRESS, verbose_name='Calcul')
+    selection = models.CharField(max_length=16, choices=Selection.choices,
+                                 default=Selection.SELECTED, verbose_name='Source de tâches')
+    tasks = models.ManyToManyField('Task', blank=True, related_name='custom_kpis', verbose_name='Tâches')
+    queries = models.ManyToManyField('Query', blank=True, related_name='custom_kpis', verbose_name='Requêtes liées')
+    priority = models.PositiveSmallIntegerField(null=True, blank=True,
+                choices=[(1, 'Priorité 1'), (2, 'Priorité 2'), (3, 'Priorité 3'), (4, 'Priorité 4')],
+                verbose_name='Priorité')
+    kind = models.CharField(max_length=16, choices=Kind.choices, default=Kind.ALL, verbose_name='Type de tâche')
+    state = models.CharField(max_length=16, choices=State.choices, default=State.ALL, verbose_name='État de progression')
+    target = models.DecimalField(max_digits=14, decimal_places=2, blank=True, null=True, verbose_name='Objectif')
+    is_active = models.BooleanField(default=True, verbose_name='Indicateur actif')
+    revision = models.PositiveIntegerField(default=1, editable=False)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL,
+                                   related_name='created_custom_kpis', editable=False)
+    updated_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL,
+                                   related_name='updated_custom_kpis', editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ('name', 'pk')
+        constraints = [models.CheckConstraint(condition=models.Q(target__isnull=True) | models.Q(target__gt=0),
+                                               name='custom_kpi_target_positive')]
+        verbose_name = 'Indicateur personnalisé'
+        verbose_name_plural = 'Indicateurs personnalisés'
+
+    def __str__(self):
+        return self.name
+
+
 class Timesheet(models.Model):
     # Encapsulated choices using TextChoices
     class LeaveType(models.TextChoices):

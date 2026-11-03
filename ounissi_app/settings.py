@@ -29,6 +29,11 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+# KPI visibility submits several bounded fields for each role and indicator.
+# Keep a finite field limit, while allowing a practical number of custom KPIs.
+# Django's request-body memory limit remains in effect.
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+
 
 # Application definition
 
