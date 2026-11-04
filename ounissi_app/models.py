@@ -345,6 +345,14 @@ class Schedule(models.Model):
         ]
 
 
+class ScheduleCreationRequest(models.Model):
+    """Idempotency key for one administrator/manager schedule submission."""
+    key = models.UUIDField(primary_key=True, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    schedule = models.OneToOneField(Schedule, on_delete=models.CASCADE, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class ScheduleEmployee(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE)

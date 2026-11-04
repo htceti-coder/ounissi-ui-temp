@@ -1,206 +1,51 @@
 {% extends 'base2.html' %}
-{% load custom_filters %}
 {% load static %}
+{% block title %}Planification TRT{% endblock %}
+{% block style %}<link rel="stylesheet" href="{% static 'css/schedule_planning.css' %}">{% endblock %}
 {% block content %}
-<h1>Planification TRT</h1>
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Choisir un modèle</button>
-</form>
-
-{% if selected_schedule %}
-<h2>Détails du TRT</h2>
-<p>Vérifiez les détails du TRT avant l’enregistrement</p>
-<div class="tabs" role="tablist" aria-label="Détails du TRT">
-  <button type="button" id="tab-Details" class="tab active" role="tab" aria-controls="Details" aria-selected="true" tabindex="0" onclick="openTab(event, 'Details')">Détails TRT</button>
-  <button type="button" id="tab-Employees" class="tab" role="tab" aria-controls="Employees" aria-selected="false" tabindex="-1" onclick="openTab(event, 'Employees')">Employés</button>
-  <button type="button" id="tab-Tasks" class="tab" role="tab" aria-controls="Tasks" aria-selected="false" tabindex="-1" onclick="openTab(event, 'Tasks')">Tâches</button>
-  <button type="button" id="tab-Options" class="tab" role="tab" aria-controls="Options" aria-selected="false" tabindex="-1" onclick="openTab(event, 'Options')">Options</button>
+<header class="planner-header">
+  <div><p class="planner-eyebrow"><i class="fa fa-calendar" aria-hidden="true"></i> Exploitation · Planification</p><h1>Planification TRT</h1><p>Choisissez un TRT type, vérifiez sa répartition, puis créez un TRT daté.</p></div>
+  {% if can_edit_templates %}<a class="btn btn-primary" href="{% url 'create_schedule' %}"><i class="fa fa-plus" aria-hidden="true"></i> Créer un TRT type</a>{% endif %}
+</header>
+<div class="planning-detail">
+  <section class="planner-section">
+    <div class="planner-section__head"><span>01</span><div><h2>Choisir un modèle</h2><p>Les responsables peuvent planifier pour toutes les équipes.</p></div></div>
+    <form method="get" action="{% url 'schedule_details2' %}" class="planning-filter">
+      <div><label for="template-select">TRT type</label><select id="template-select" name="schedule" required><option value="">Sélectionner un modèle</option>{% for template in templates_list %}<option value="{{ template.pk }}" {% if selected_schedule.pk == template.pk %}selected{% endif %}>{{ template.schedule_name }}</option>{% endfor %}</select></div>
+      <button class="btn btn-outline-primary" type="submit">Afficher le modèle</button>
+    </form>
+    {% if not templates_list %}<p class="planner-help">Aucun TRT type n’est disponible. Un administrateur peut en créer un.</p>{% endif %}
+  </section>
+  {% if selected_schedule %}
+  <section class="planner-section">
+    <div class="planner-section__head planner-section__head--spread"><span>02</span><div><h2>{{ selected_schedule.schedule_name }}</h2><p>Horaires du modèle : {{ selected_schedule.start_time|time:'H:i:s' }} – {{ selected_schedule.end_time|time:'H:i:s' }}</p></div>
+      {% if can_edit_templates %}<div class="planning-actions"><a class="btn btn-outline-primary" href="{% url 'edit_schedule_template' selected_schedule.pk %}"><i class="fa fa-pencil" aria-hidden="true"></i> Modifier</a><a class="btn btn-outline-secondary" href="{% url 'duplicate_schedule_template' selected_schedule.pk %}"><i class="fa fa-copy" aria-hidden="true"></i> Dupliquer</a></div>{% endif %}
+    </div>
+    {% if data_error %}<div class="planner-notice planner-notice--warning" role="alert">{{ data_error }}</div>{% else %}
+    <div class="planner-summary" aria-label="Résumé du modèle">
+      <div><small>Tâches</small><strong>{{ task_count }}</strong></div><div><small>Employés</small><strong>{{ employee_count }}</strong></div><div><small>Temps prévu</small><strong>{{ planned_time }}</strong></div><div><small>Temps affecté</small><strong>{{ assigned_time }}</strong></div>
+    </div>
+    {% if warnings %}<div class="planner-notice planner-notice--warning" role="status"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i><div>{% for warning in warnings %}<div>{{ warning }}</div>{% endfor %}{% if unassigned_tasks %}<details><summary>Voir les tâches avec du temps non affecté</summary><ul class="planning-task-list">{% for item in unassigned_tasks|slice:":50" %}<li>{{ item.name }} : {{ item.duration }}</li>{% endfor %}</ul>{% if unassigned_tasks|length > 50 %}<p>50 premières tâches affichées ; vérifiez le détail dans le modèle.</p>{% endif %}</details>{% endif %}</div></div>{% endif %}
+    {% endif %}
+    <div class="planner-subsection__head planner-assignment-head"><div><h3>Affectations du modèle</h3><p>{{ item_count|default:'0' }} ligne(s) au total · durées conservées à la seconde près.</p></div></div>
+    <form method="get" class="planning-filter"><div><label for="assignment-filter">Filtrer les affectations</label><input id="assignment-filter" type="search" name="q" value="{{ item_query }}" placeholder="Tâche, employé ou référence"></div><button type="submit" class="btn btn-outline-secondary">Filtrer</button>{% if item_query %}<a class="btn btn-outline-secondary" href="{% url 'schedule_details_with_id' selected_schedule.pk %}">Effacer</a>{% endif %}</form>
+    <div class="planner-table-wrap"><table class="planner-table"><thead><tr><th>Tâche</th><th>Employé</th><th>Référence</th><th>Temps affecté</th></tr></thead><tbody>{% for item in item_page %}<tr><td>{{ item.task.task_name }}</td><td>{{ item.employee|default:'Sans employé' }}</td><td>{{ item.task_identifier|default:'—' }}</td><td>{{ item.assigned_time }}</td></tr>{% empty %}<tr><td colspan="4">Aucune affectation pour ce filtre.</td></tr>{% endfor %}</tbody></table></div>
+    <div class="planner-pager">{% if item_page.has_previous %}<a class="btn btn-sm btn-outline-secondary" href="?q={{ item_query|urlencode }}&amp;page={{ item_page.previous_page_number }}">Précédent</a>{% endif %}<span>Page {{ item_page.number }} / {{ item_page.paginator.num_pages }} · {{ item_page.paginator.count }} résultat(s)</span>{% if item_page.has_next %}<a class="btn btn-sm btn-outline-secondary" href="?q={{ item_query|urlencode }}&amp;page={{ item_page.next_page_number }}">Suivant</a>{% endif %}</div>
+  </section>
+  <section class="planner-section">
+    <div class="planner-section__head"><span>03</span><div><h2>Créer le TRT daté</h2><p>Le modèle est copié depuis la base ; les TRT datés existants ne sont pas modifiés.</p></div></div>
+    <div class="planner-notice planner-notice--info"><i class="fa fa-info-circle" aria-hidden="true"></i><div>Le traitement automatique du stock existant s’exécute à la création et peut ajouter des affectations aux éléments copiés. Le suivi actuel ne prend pas en charge les postes de nuit.</div></div>
+    {% if planning_error %}<div class="planner-feedback" role="alert">{{ planning_error }}</div>{% endif %}
+    {% if can_create_dated %}
+    <form method="post" action="{% url 'create_dated_schedule' selected_schedule.pk %}" class="planner" data-dated-schedule-form>
+      {% csrf_token %}<input type="hidden" name="version" value="{{ version }}"><input type="hidden" name="submission_key" value="{{ submission_key }}">
+      <div class="planning-create-grid"><div><label for="schedule-date">Date</label><input id="schedule-date" type="date" name="schedule_date" value="{{ date_value }}" required></div><div><label for="dated-start">Heure de début</label><input id="dated-start" type="time" step="1" name="start_time" value="{{ start_value }}" required></div><div><label for="dated-end">Heure de fin</label><input id="dated-end" type="time" step="1" name="end_time" value="{{ end_value }}" required></div></div>
+      {% if warnings %}<label class="planner-check"><input type="checkbox" name="confirm_warnings" value="yes" required {% if warnings_confirmed %}checked{% endif %}> J’ai vérifié tous les avertissements ci-dessus.</label>{% endif %}
+      <div><button type="submit" class="btn btn-primary" data-dated-submit><i class="fa fa-calendar-check-o" aria-hidden="true"></i> Créer le TRT</button></div>
+    </form>
+    {% else %}<p class="planner-help">Ce modèle doit être corrigé avant de créer un TRT daté.</p>{% endif %}
+  </section>
+  {% endif %}
 </div>
-
-<!-- Tab content for Details -->
-<div id="Details" class="table-container" role="tabpanel" aria-labelledby="tab-Details" style="display: block;">
-
-  <table class="filtertable" id="ItemsTable">
-    <thead>
-      <tr>
-        <th>Employee</th>
-        <th>Tache</th>
-        <th>Temps Assigne</th>
-        <th>#Operations Assignees</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for detail in schedule_details %}
-      <tr>
-<!--        <td hidden></td>-->
-        <td>{{ detail.employee }}</td>
-        <td>{{ detail.task }}</td>
-        <td>{{ detail.assigned_time }}</td>
-        {% with result=detail.assigned_time|division:detail.task.average_duration %}
-        <td>{{ result }}</td>
-        {% endwith %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  <br>
-
-
-</div>
-
-<!-- Tab content for Employees -->
-<div id="Employees" class="table-container" role="tabpanel" aria-labelledby="tab-Employees">
-  <h3>Details des Employees</h3>
-  <table class="filtertable" id="EmployeeTable">
-    <thead>
-      <tr>
-        <th>id</th>
-        <th>Employee</th>
-        <th>Temps de Travail</th>
-        <th>Temps Assigne</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for employee in schedule_employees %}
-      <tr>
-        <td>{{ employee.employee.id }}</td>
-        <td>{{ employee.employee.first_name }}</td>
-        <td>{{ employee.working_hours }}</td>
-        <td>{{ employee.total_assigned_time }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-
-<!-- Tab content for Tasks -->
-<div id="Tasks" class="table-container" role="tabpanel" aria-labelledby="tab-Tasks">
-  <h2>Details des Taches</h2>
-  <table class="filtertable" id="TasksTable">
-    <thead>
-      <tr>
-        <th>id</th>
-        <th>Type</th>
-        <th>Priorite</th>
-        <th>Designation</th>
-        <th>Temps Total</th>
-        <th>Temps Assigne</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for task in schedule_tasks %}
-      <tr>
-        <td>{{ task.task.id }}</td>
-        <td>{{ task.task.task_type}}</td>
-        <td>{{ task.task.priority }}</td>
-        <td>{{ task.task.task_name }}</td>
-        <td>{{ task.total_time }}</td>
-        <td>{{ task.total_assigned_time }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-
-<!-- Placeholder for future tables -->
-<div id="Options" class="table-container" role="tabpanel" aria-labelledby="tab-Options">
-  <h2>Options du TRT</h2>
-  <form id="create_schedule_form" method="post" action="{% url 'create_schedule' %}">
-    {% csrf_token %}
-    <label for="schedule_date">Date du TRT :</label>
-    <input type="date" id="schedule_date" name="schedule_date" required><br><br>
-
-    <label for="start_time">Heure de début :</label>
-    <input type="time" id="start_time" name="start_time" value="{{ start_time|time:'H:i' }}" required><br><br>
-
-    <label for="end_time">Heure de fin :</label>
-    <input type="time" id="end_time" name="end_time" value="{{ end_time|time:'H:i' }}" required><br><br>
-
-    <!-- Hidden input fields to store data from other tabs -->
-    <input type="hidden" id="tasks_data" name="tasks">
-    <input type="hidden" id="employees_data" name="employees">
-    <input type="hidden" id="scheduleItems_data" name="scheduleItems">
-
-    <button type="button" onclick="prepareFormDataAndSubmit()">Créer le TRT</button>
-  </form>
-</div>
-
-{% endif %}
-
-<script>
-function openTab(evt, tabName) {
-  document.querySelectorAll('.table-container[role="tabpanel"]').forEach(function (panel) {
-    panel.style.display = panel.id === tabName ? 'block' : 'none';
-  });
-  document.querySelectorAll('.tabs [role="tab"]').forEach(function (tab) {
-    const active = tab === evt.currentTarget;
-    tab.classList.toggle('active', active);
-    tab.setAttribute('aria-selected', String(active));
-    tab.tabIndex = active ? 0 : -1;
-  });
-}
-
-function prepareFormDataAndSubmit() {
-  // Gathering schedule_tasks data
-  let tasksData = [];
-    {% for task in schedule_tasks %}
-        tasksData.push({
-            task_id: {{ task.task.id }},
-            total_duration: timeStringToMinutes('{{ task.total_time }}'),
-            total_assigned_time: timeStringToMinutes('{{ task.total_assigned_time }}'),
-        });
-
-        {% endfor %}
-        console.log(tasksData);
-  // Gathering schedule_employees data
-    let employeesData = [];
-    {% for employee in schedule_employees %}
-        employeesData.push({
-            employee_id: {{ employee.employee.id }},
-            working_hours: timeStringToMinutes('{{ employee.working_hours }}'),
-            total_assigned_hours: timeStringToMinutes('{{ employee.total_assigned_time }}'),
-        });
-    {% endfor %}
-    console.log(employeesData);
-    //Gathering schedule_details data
-    let scheduleItemsData = [];
-    {% for detail in schedule_details %}
-        scheduleItemsData.push({
-            employee_id: {{ detail.employee.id }},
-            task_id: {{ detail.task.id }},
-            assigned_time: timeStringToMinutes('{{ detail.assigned_time }}'),
-
-        });
-        {% endfor %}
-console.log(scheduleItemsData);
-
-  var tasks = JSON.stringify(tasksData);
-  var employees = JSON.stringify(employeesData);
-  var scheduleItems = JSON.stringify(scheduleItemsData);
-
-  // Set the gathered data to the hidden input fields
-  document.getElementById("tasks_data").value = tasks;
-  document.getElementById("employees_data").value = employees;
-  document.getElementById("scheduleItems_data").value = scheduleItems;
-
-  // Submit the form
-  document.getElementById("create_schedule_form").submit();
-}
-
-	// Function to convert 'HH:MM' strings to minutes
-	function timeStringToMinutes(timeStr) {
-		const [hours, minutes] = timeStr.split(":");
-		return parseInt(hours) * 60 + parseInt(minutes);
-		}
-
-document.addEventListener("DOMContentLoaded", function() {
-    var currentDate = new Date().toISOString().split('T')[0];
-    var scheduleDate = document.getElementById("schedule_date");
-    if (scheduleDate && !scheduleDate.value) scheduleDate.value = currentDate;
-});
-
-</script>
-
 {% endblock %}
+{% block scripts %}<script src="{% static 'js/schedule_date_submit.js' %}"></script>{% endblock %}

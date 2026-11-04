@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic.base import TemplateView
-from . import views, navigation_views, kpi_views
+from . import views, navigation_views, kpi_views, planning_views
 import accounts.views
 from .api import ninja_api
 urlpatterns = [
@@ -37,6 +37,9 @@ urlpatterns = [
     path('schedule/scheduleItem_update/<int:pk>', views.scheduleItem_update, name='scheduleItem_update'),
     path('schedule/<int:schedule_id>/manual-progress/', views.bulk_manual_progress, name='bulk_manual_progress'),
     path('schedule/create_schedule/', views.create_schedule, name='create_schedule'),
+    path('schedule/template/<int:template_id>/edit/', planning_views.template_editor, {'mode': 'edit'}, name='edit_schedule_template'),
+    path('schedule/template/<int:template_id>/duplicate/', planning_views.template_editor, {'mode': 'duplicate'}, name='duplicate_schedule_template'),
+    path('schedule/template/<int:template_id>/create-dated/', planning_views.create_dated_schedule, name='create_dated_schedule'),
     path('finalize_schedule/<int:schedule_id>/', views.finalize_schedule, name='finalize_schedule'),
     path('unfinished_tasks/<int:schedule_id>/', views.handle_unfinished_tasks, name='unfinished_tasks'),
     path('import_tasks/', views.import_tasks, name='import_tasks'),

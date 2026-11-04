@@ -1,0 +1,8 @@
+{% extends 'base2.html' %}
+{% block title %}Modèle à vérifier{% endblock %}
+{% block content %}
+<h1>Ce modèle doit être vérifié</h1>
+<div class="app-alert app-alert--warning" role="alert">{{ planning_error }}</div>
+<p>Aucune modification n’a été enregistrée. Faites corriger les données du modèle avant de continuer.</p>
+<a class="btn btn-outline-secondary" href="{% url 'schedule_details2' %}">Retour à la planification</a>
+{% endblock %}

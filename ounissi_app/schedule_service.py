@@ -107,6 +107,18 @@ def get_schedule_context_data(schedule, employee=None):
     return context
 
 
+def planned_unassigned_work(schedule_tasks):
+    """Expose remaining planning budgets without inventing reception items."""
+    result = []
+    for row in schedule_tasks:
+        if row.total_time is None:
+            continue
+        remaining = row.total_time - (row.total_assigned_time or timedelta())
+        if remaining > timedelta():
+            result.append({'task': row.task, 'remaining': remaining})
+    return result
+
+
 # --- PROGRESS CALCULATION LOGIC ---
 
 def run_raw_query(query_obj, parameters):

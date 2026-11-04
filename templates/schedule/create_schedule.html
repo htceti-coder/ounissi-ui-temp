@@ -1,100 +1,111 @@
 {% extends 'base2.html' %}
 {% load static %}
-{% block title %}Créer un TRT type{% endblock %}
+{% block title %}{% if mode == 'edit' %}Modifier{% elif mode == 'duplicate' %}Dupliquer{% else %}Créer{% endif %} un TRT type{% endblock %}
+{% block style %}<link rel="stylesheet" href="{% static 'css/schedule_planning.css' %}">{% endblock %}
 {% block content %}
-<header class="wizard-header">
-  <h1>Créer un TRT type</h1>
-  <p>Définissez les horaires, sélectionnez les tâches et les employés, puis répartissez les affectations.</p>
+<header class="planner-header">
+  <div>
+    <p class="planner-eyebrow"><i class="fa fa-object-group" aria-hidden="true"></i> Configuration · Administrateur</p>
+    <h1>{% if mode == 'edit' %}Modifier le TRT type{% elif mode == 'duplicate' %}Créer à partir d’un TRT type{% else %}Créer un TRT type{% endif %}</h1>
+    <p>{% if template_schedule %}Modèle source : <strong>{{ template_schedule.schedule_name }}</strong>. {% endif %}Définissez les besoins et les capacités, puis préparez les affectations.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% if template_schedule %}{% url 'schedule_details_with_id' template_schedule.pk %}{% else %}{% url 'schedule_details2' %}{% endif %}"><i class="fa fa-arrow-left" aria-hidden="true"></i> Retour à la planification</a>
 </header>
-<form method="post" id="main-form" class="schedule-wizard">
+
+{% if mode == 'edit' %}
+<div class="planner-notice planner-notice--info"><i class="fa fa-info-circle" aria-hidden="true"></i><div>Les modifications ne concernent que ce modèle. Les TRT datés déjà créés ne seront pas modifiés. Le stock n’est pas régénéré lors d’une modification.</div></div>
+{% else %}
+<div class="planner-notice planner-notice--info"><i class="fa fa-info-circle" aria-hidden="true"></i><div>À la création, le traitement automatique du stock existant est exécuté comme auparavant et peut ajouter des affectations, y compris aux éléments copiés.</div></div>
+{% endif %}
+{% if aggregate_mismatch %}<div class="planner-notice planner-notice--warning" role="status"><i class="fa fa-exclamation-triangle" aria-hidden="true"></i><div>Les totaux enregistrés de ce modèle ne correspondent pas à ses affectations. Ils sont affichés et seront recalculés à partir des lignes lors de l’enregistrement.</div></div>{% endif %}
+<noscript><div class="planner-notice planner-notice--warning">JavaScript est nécessaire pour préparer et enregistrer le modèle. Vos autres pages restent accessibles.</div></noscript>
+<form id="planner-form" class="planner" method="post" action="{% if mode == 'edit' %}{% url 'edit_schedule_template' template_schedule.pk %}{% elif mode == 'duplicate' %}{% url 'duplicate_schedule_template' template_schedule.pk %}{% else %}{% url 'create_schedule' %}{% endif %}">
   {% csrf_token %}
-  <section class="wizard-card">
-    <h2>Informations générales</h2>
-    <div class="wizard-fields">
-      <div class="wizard-field">
-        <label for="schedule_name">Nom du TRT type</label>
-        <input id="schedule_name" name="schedule_name" required>
+  <section class="planner-summary" aria-label="Résumé de la planification">
+    <div><small>Tâches sélectionnées</small><strong id="summary-tasks">0</strong></div>
+    <div><small>Employés sélectionnés</small><strong id="summary-employees">0</strong></div>
+    <div><small>Temps prévu</small><strong id="summary-planned">00:00:00</strong></div>
+    <div><small>Temps non affecté</small><strong id="summary-unassigned">00:00:00</strong></div>
+  </section>
+
+  <section class="planner-section">
+    <div class="planner-section__head"><span>01</span><div><h2>Informations générales</h2><p>Ce modèle pourra ensuite être utilisé pour créer des TRT datés.</p></div></div>
+    <div class="planner-fields planner-fields--three">
+      <div><label for="schedule-name">Nom du TRT type</label><input id="schedule-name" name="schedule_name" maxlength="255" required autocomplete="off" placeholder="Ex. Équipe du matin"></div>
+      <div><label for="schedule-start">Heure de début</label><input id="schedule-start" name="start_time" type="time" step="1" required></div>
+      <div><label for="schedule-end">Heure de fin</label><input id="schedule-end" name="end_time" type="time" step="1" required></div>
+    </div>
+    <p class="planner-help">La capacité proposée pour un nouvel employé correspond à la durée du poste lorsque la fin suit le début. Elle reste modifiable individuellement. Le suivi actuel ne prend pas en charge les postes de nuit.</p>
+  </section>
+
+  <div class="planner-columns">
+    <section class="planner-section">
+      <div class="planner-section__head"><span>02</span><div><h2>Choisir les tâches</h2><p>Filtrez le catalogue sans perdre votre sélection.</p></div></div>
+      <div class="planner-filters">
+        <div><label for="task-search">Rechercher une tâche</label><input id="task-search" type="search" placeholder="Nom de la tâche"></div>
+        <div><label for="task-type">Type</label><select id="task-type"><option value="">Tous les types</option></select></div>
+        <div><label for="task-priority">Priorité</label><select id="task-priority"><option value="">Toutes</option><option value="1">Priorité 1</option><option value="2">Priorité 2</option><option value="3">Priorité 3</option><option value="4">Priorité 4</option></select></div>
       </div>
-      <div class="wizard-field">
-        <label for="start_time">Heure de début</label>
-        <input type="time" name="start_time" required id="start_time" value="08:00">
+      <label class="planner-check"><input id="task-selected-only" type="checkbox"> Afficher uniquement les tâches sélectionnées</label>
+      <div class="planner-list-actions"><button id="task-select-all" type="button" class="btn btn-sm btn-outline-primary">Sélectionner les résultats</button><button id="task-clear-all" type="button" class="btn btn-sm btn-outline-secondary">Retirer les résultats</button></div>
+      <div id="task-catalog" class="planner-catalog" aria-label="Catalogue des tâches"></div>
+      <div class="planner-pager"><button id="task-prev" type="button" aria-label="Tâches précédentes">‹</button><span id="task-page"></span><button id="task-next" type="button" aria-label="Tâches suivantes">›</button></div>
+    </section>
+    <section class="planner-section">
+      <div class="planner-section__head"><span>03</span><div><h2>Choisir les employés</h2><p>Une équipe peut être sélectionnée en une fois.</p></div></div>
+      <div class="planner-filters">
+        <div><label for="employee-search">Rechercher un employé</label><input id="employee-search" type="search" placeholder="Nom de l’employé"></div>
+        <div><label for="employee-team">Équipe</label><select id="employee-team"><option value="">Toutes les équipes</option></select></div>
+        <div><label for="employee-rank">Niveau</label><select id="employee-rank"><option value="">Tous</option></select></div>
       </div>
-      <div class="wizard-field">
-        <label for="end_time">Heure de fin</label>
-        <input type="time" name="end_time" required id="end_time" value="14:00">
+      <label class="planner-check"><input id="employee-selected-only" type="checkbox"> Afficher uniquement les employés sélectionnés</label>
+      <div class="planner-list-actions"><button id="employee-select-all" type="button" class="btn btn-sm btn-outline-primary">Sélectionner les résultats</button><button id="employee-clear-all" type="button" class="btn btn-sm btn-outline-secondary">Retirer les résultats</button></div>
+      <div id="employee-catalog" class="planner-catalog" aria-label="Catalogue des employés"></div>
+      <div class="planner-pager"><button id="employee-prev" type="button" aria-label="Employés précédents">‹</button><span id="employee-page"></span><button id="employee-next" type="button" aria-label="Employés suivants">›</button></div>
+    </section>
+  </div>
+
+  <section class="planner-section">
+    <div class="planner-section__head"><span>04</span><div><h2>Définir les durées</h2><p>Utilisez heures:minutes:secondes, par exemple <strong>00:08:15</strong> pour 495 secondes. Les heures peuvent dépasser 24.</p></div></div>
+    <div class="planner-columns planner-columns--inside">
+      <div class="planner-subsection">
+        <div class="planner-subsection__head"><div><h3>Besoins des tâches</h3><p>Temps total à répartir par tâche.</p></div></div>
+        <label for="task-budget-search" class="sr-only">Filtrer les tâches sélectionnées</label><input id="task-budget-search" type="search" placeholder="Filtrer les tâches sélectionnées">
+        <label class="planner-check"><input id="task-unassigned-only" type="checkbox"> Afficher seulement les besoins non affectés</label>
+        <div class="planner-bulk"><label for="task-bulk-duration">Durée commune</label><input id="task-bulk-duration" type="text" inputmode="text" placeholder="01:00:00"><button id="task-bulk-apply" type="button" class="btn btn-sm btn-outline-secondary">Appliquer aux tâches filtrées</button></div>
+        <div class="planner-table-wrap"><table class="planner-table"><thead><tr><th>Tâche</th><th>Affecté</th><th>Non affecté</th><th>Durée prévue</th></tr></thead><tbody id="task-budget-list"></tbody></table></div>
+        <div class="planner-pager"><button id="budget-task-prev" type="button" aria-label="Besoins précédents">‹</button><span id="budget-task-page"></span><button id="budget-task-next" type="button" aria-label="Besoins suivants">›</button></div>
+      </div>
+      <div class="planner-subsection">
+        <div class="planner-subsection__head"><div><h3>Capacités des employés</h3><p>Temps disponible dans ce TRT.</p></div></div>
+        <label for="employee-budget-search" class="sr-only">Filtrer les employés sélectionnés</label><input id="employee-budget-search" type="search" placeholder="Filtrer les employés sélectionnés">
+        <div class="planner-bulk"><label for="employee-bulk-duration">Capacité commune</label><input id="employee-bulk-duration" type="text" inputmode="text" placeholder="06:00:00"><button id="employee-bulk-apply" type="button" class="btn btn-sm btn-outline-secondary">Appliquer aux employés filtrés</button></div>
+        <div class="planner-table-wrap"><table class="planner-table"><thead><tr><th>Employé</th><th>Affecté</th><th>Capacité</th></tr></thead><tbody id="employee-budget-list"></tbody></table></div>
+        <div class="planner-pager"><button id="budget-employee-prev" type="button" aria-label="Capacités précédentes">‹</button><span id="budget-employee-page"></span><button id="budget-employee-next" type="button" aria-label="Capacités suivantes">›</button></div>
       </div>
     </div>
   </section>
 
-  <div class="wizard-grid">
-    <section class="wizard-card">
-      <h2>Tâches</h2>
-      <label for="tasks-select">Tâches à planifier</label>
-      <select multiple class="chosen_multi_select" name="tasks_select" id="tasks-select">
-        {% for task_type, tasks_details in tasks.items %}
-          <optgroup label="{{ task_type }}" class="task-type-group">
-            {% for task in tasks_details %}
-              <option value="{{ task.pk }}" data-responsibility_level="{{ task.responsibility_level.value }}">{{ task }} (niv. {{ task.responsibility_level.value }})</option>
-            {% endfor %}
-          </optgroup>
-        {% endfor %}
-      </select>
-      <button type="button" class="btn btn-outline-secondary wizard-secondary" onclick="selectTasksByType('AUTO')">Sélectionner les tâches automatiques</button>
-    </section>
-    <section class="wizard-card">
-      <h2>Employés</h2>
-      <label for="employees-select">Employés à affecter</label>
-      <select multiple class="chosen_multi_select" name="employees_select" id="employees-select">
-        {% for employee_rank, employees_details in employees.items %}
-          <optgroup label="{{ employee_rank }}" class="employee-rank-group">
-            {% for employee in employees_details %}
-              <option value="{{ employee.pk }}" data-rank="{{ employee.rank.value }}">{{ employee }} (niv. {{ employee.rank.value }})</option>
-            {% endfor %}
-          </optgroup>
-        {% endfor %}
-      </select>
-      <div class="wizard-team">
-        <div class="wizard-field">
-          <label for="team-select">Équipe</label>
-          <select id="team-select">
-            <option value="">Sélectionner une équipe</option>
-            {% for team in teams %}
-              <option value="{{ team.pk }}" data-members="{% for member in team.employees.all %}{{ member.pk }},{% endfor %}">{{ team }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <button type="button" class="btn btn-outline-secondary" onclick="addEmployeesFromGroup()">Ajouter l’équipe</button>
+  <section class="planner-section">
+    <div class="planner-section__head planner-section__head--spread"><span>05</span><div><h2>Répartir le travail</h2><p>La répartition automatique maximise d’abord la priorité 1, puis 2, 3 et 4, selon les niveaux et les capacités.</p></div><button id="auto-distribute" class="btn btn-primary" type="button"><i class="fa fa-random" aria-hidden="true"></i> Répartition automatique</button></div>
+    <div id="planner-warnings" class="planner-notice planner-notice--warning" role="status" aria-live="polite" hidden></div>
+    <div class="planner-manual">
+      <h3>Ajouter une affectation manuelle</h3>
+      <div class="planner-fields planner-fields--manual">
+        <div><label for="manual-task-search">Filtrer les tâches</label><input id="manual-task-search" type="search" placeholder="Tâche"><label class="sr-only" for="manual-task">Tâche</label><select id="manual-task"></select></div>
+        <div><label for="manual-employee-search">Filtrer les employés</label><input id="manual-employee-search" type="search" placeholder="Employé"><label class="sr-only" for="manual-employee">Employé</label><select id="manual-employee"></select></div>
+        <div><label for="manual-duration">Durée</label><input id="manual-duration" type="text" value="00:30:00" placeholder="00:30:00"></div>
+        <div><label for="manual-identifier">Référence (facultatif)</label><input id="manual-identifier" type="text" maxlength="100"></div>
+        <button id="manual-add" type="button" class="btn btn-outline-primary">Ajouter</button>
       </div>
-    </section>
-  </div>
-  <div class="wizard-actions"><button type="button" onclick="fillScheduleIntermediateTables()">Préparer la répartition</button></div>
-
-  <div class="wizard-grid">
-    <section class="wizard-card">
-      <h2>Durée des tâches</h2>
-      <table id="task-table" aria-label="Durée des tâches">
-        <thead><tr><th hidden>ID</th><th>Tâche</th><th>Niveau minimum</th><th>Temps affecté</th><th>Durée totale</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </section>
-    <section class="wizard-card">
-      <h2>Temps des employés</h2>
-      <table id="employee-table" aria-label="Temps des employés">
-        <thead><tr><th hidden>ID</th><th>Employé</th><th>Rang</th><th>Temps affecté</th><th>Temps de travail</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </section>
-  </div>
-  <div class="wizard-actions"><button type="button" onclick="distributeTasks()">Répartir les tâches</button></div>
-
-  <section class="wizard-card">
-    <h2>Détail des affectations</h2>
-    <table class="table" id="scheduleItems-table" aria-label="Détail des affectations">
-      <thead><tr><th hidden>ID tâche</th><th>Tâche</th><th hidden>ID employé</th><th>Employé</th><th>Temps affecté</th><th>Action</th></tr></thead>
-      <tbody></tbody><tfoot></tfoot>
-    </table>
+    </div>
+    <div class="planner-subsection__head planner-assignment-head"><div><h3>Détail des affectations</h3><p>Les totaux sont recalculés après chaque modification.</p></div><div><label class="sr-only" for="assignment-search">Filtrer les affectations</label><input id="assignment-search" type="search" placeholder="Tâche, employé ou référence"></div></div>
+    <div class="planner-table-wrap"><table class="planner-table planner-assignment-table"><thead><tr><th>Tâche</th><th>Employé</th><th>Référence</th><th>Durée affectée</th><th><span class="sr-only">Action</span></th></tr></thead><tbody id="assignment-list"></tbody></table></div>
+    <div class="planner-pager"><button id="assignment-prev" type="button" aria-label="Affectations précédentes">‹</button><span id="assignment-page"></span><button id="assignment-next" type="button" aria-label="Affectations suivantes">›</button></div>
   </section>
-  <div class="wizard-actions"><button type="button" class="btn btn-primary" onclick="submitData()">Enregistrer le TRT type</button></div>
+  <div id="planner-feedback" class="planner-feedback" role="alert" aria-live="assertive" hidden></div>
+  <div class="planner-save"><p>Vérifiez les durées non affectées et les éventuels dépassements avant d’enregistrer.</p><button id="planner-save" type="submit" class="btn btn-primary"><i class="fa fa-check" aria-hidden="true"></i> {% if mode == 'edit' %}Enregistrer les modifications{% elif mode == 'duplicate' %}Créer la copie{% else %}Enregistrer le TRT type{% endif %}</button></div>
 </form>
+{{ planner_data|json_script:'schedule-planner-data' }}
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/create_schedule.js' %}"></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/schedule_planner.js' %}"></script><script src="{% static 'js/create_schedule.js' %}"></script>{% endblock %}

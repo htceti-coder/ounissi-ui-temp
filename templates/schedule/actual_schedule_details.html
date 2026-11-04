@@ -7,6 +7,7 @@
 
 
 {% if actual%}
+{% if can_manage_trt %}{% include 'schedule/unassigned_planning_notice.html' %}{% endif %}
 <div class="trt-actions">
 <form method="post" action="{% url 'update_schedule_now' schedule_id=selected_schedule.id %}">
     {% csrf_token %}

@@ -510,6 +510,9 @@ def testconn(request):
 
 @login_required
 def test_query_submission(request):
+    from .navigation import ADMIN, role_for
+    if role_for(request.user) != ADMIN:
+        raise PermissionDenied
     if request.method == 'POST':
         query_text = request.POST.get('queryText')
         parameters = get_dynamic_parameter(request)
@@ -535,6 +538,9 @@ def test_query_submission(request):
 
 @login_required
 def get_query_details(request, query_id):
+    from .navigation import ADMIN, role_for
+    if role_for(request.user) != ADMIN:
+        raise PermissionDenied
     query = get_object_or_404(Query, pk=query_id)
     parameters = [{'name': key, 'value': value} for key, value in query.parameters.items() if key != 'model_name']
     return JsonResponse({'parameters': parameters})
@@ -542,6 +548,9 @@ def get_query_details(request, query_id):
 
 @login_required
 def execute_query(request):
+    from .navigation import ADMIN, role_for
+    if role_for(request.user) != ADMIN:
+        raise PermissionDenied
     if request.method == 'POST':
         conn = None
         query_id = request.POST.get('query', '')
@@ -608,6 +617,9 @@ def get_dynamic_parameter(request):
 
 @login_required
 def create_query(request):
+    from .navigation import ADMIN, role_for
+    if role_for(request.user) != ADMIN:
+        raise PermissionDenied
     if request.method == 'POST':
         query_name = request.POST.get('queryName')
         query_text = request.POST.get('queryText')
@@ -634,6 +646,9 @@ def create_query(request):
 
 @login_required
 def test_queries(request):
+    from .navigation import ADMIN, role_for
+    if role_for(request.user) != ADMIN:
+        raise PermissionDenied
     queries = Query.objects.all()
     context = {'queries': queries,
                'logged_data': getLoggedData(request)}
@@ -775,85 +790,29 @@ def tasks_list(request):
 
 @login_required
 def create_schedule(request):
-    schedule_items = []
-    url = "/schedule/plan"
-    if request.method == 'POST':
-        schedule_date = request.POST.get('schedule_date')
-        start_time = request.POST.get('start_time')
-        end_time = request.POST.get('end_time')
-        schedule_name = request.POST.get('schedule_name')
-
-        tasks = json.loads(request.POST.get('tasks'))
-        employees = json.loads(request.POST.get('employees'))
-        scheduleItems = json.loads(request.POST.get('scheduleItems'))
-
-        is_template = True if schedule_name else False
-
-        if tasks and employees and scheduleItems:
-            schedule = Schedule.objects.create(date=schedule_date, start_time=start_time, end_time=end_time,
-                                               schedule_name=schedule_name, is_template=is_template)
-
-            for task in tasks:
-                total_time = timedelta(minutes=task['total_duration'])
-                total_assigned_time = timedelta(minutes=task['total_assigned_time'])
-                ScheduleTask.objects.create(schedule=schedule, task_id=task['task_id'], total_time=total_time,
-                                            total_assigned_time=total_assigned_time)
-
-            for employee in employees:
-                working_hours = timedelta(minutes=employee['working_hours'])
-                total_assigned_time = timedelta(minutes=employee['total_assigned_hours'])
-                ScheduleEmployee.objects.create(schedule=schedule, employee_id=employee['employee_id'],
-                                                working_hours=working_hours, total_assigned_time=total_assigned_time)
-
-            for scheduleItem in scheduleItems:
-                assigned_time = timedelta(minutes=scheduleItem['assigned_time'])
-                employee = Employee.objects.get(id=scheduleItem['employee_id'])
-                task = Task.objects.get(id=scheduleItem['task_id'])
-                ScheduleItem.objects.create(
-                    schedule=schedule,
-                    employee=employee,
-                    task=task,
-                    assigned_time=assigned_time,
-                    progression_rate=0
-                )
-
-            generate_schedule_items_for_stock_operations(schedule)
-
-            if is_template:
-                return JsonResponse({'success': True, 'url': url})
-            else:
-                schedule_service.update_all_schedule_statuses()
-                return redirect('schedule_details')
-
-    else:
-        tasks_objects = Task.objects.exclude(task_type__in=[3, 4]).order_by('responsibility_level', 'priority')
-        tasks = {}
-        for task in tasks_objects:
-            task_type = task.task_type
-            tasks.setdefault(task_type, []).append(task)
-
-        employees_objects = Employee.objects.all().order_by('rank')
-        employees = {}
-        for employee in employees_objects:
-            employee_rank = employee.rank
-            employees.setdefault(employee_rank, []).append(employee)
-
-        teams = Team.objects.all()
-        context = {'tasks': tasks,
-                   'employees': employees,
-                   'schedule_items': schedule_items,
-                   'teams': teams,
-                   'logged_data': getLoggedData(request)}
-        return render(request, 'schedule/create_schedule.html', context)
+    from .planning_views import template_editor
+    return template_editor(request)
 
 
 @login_required
 def scheduleItem_update(request, pk):
+    schedule_item = get_object_or_404(ScheduleItem.objects.select_related('schedule'), pk=pk)
+    if schedule_item.schedule.is_template:
+        from .navigation import ADMIN, role_for
+        if role_for(request.user) != ADMIN or schedule_item.schedule.schedule_name == 'Transfer_Schedule':
+            raise PermissionDenied
+        if request.method == 'POST':
+            return HttpResponseBadRequest('Modifiez les TRT types dans leur éditeur dédié.')
+        return redirect('edit_schedule_template', template_id=schedule_item.schedule_id)
     schedule_service.update_all_schedule_statuses()
     referer = request.META.get('HTTP_REFERER')
-    schedule_item = get_object_or_404(ScheduleItem, pk=pk)
 
     if request.method == 'POST':
+        posted_schedule = request.POST.get('schedule')
+        if posted_schedule and (not posted_schedule.isascii() or not posted_schedule.isdecimal()):
+            return HttpResponseBadRequest('TRT invalide.')
+        if posted_schedule and Schedule.objects.filter(pk=posted_schedule, is_template=True).exists():
+            raise PermissionDenied
         form = ScheduleItemForm(request.POST, instance=schedule_item)
         if form.is_valid() and referer:
             model_form = form.save(commit=False)
@@ -891,44 +850,8 @@ def schedule_items_for_schedule(request, schedule_id):
 
 @login_required
 def schedule_details2(request, schedule_id=None):
-    schedule_service.update_all_schedule_statuses()
-    selected_schedule = None
-    employees = Employee.objects.all()
-    tasks = Task.objects.all()
-    form = ScheduleSelectionForm(request.POST or None)
-
-    if schedule_id:
-        selected_schedule = schedule_id
-    elif form.is_valid():
-        selected_schedule = form.cleaned_data['schedule']
-
-    if selected_schedule:
-        schedule_items = ScheduleItem.objects.filter(schedule=selected_schedule)
-        schedule_employees = ScheduleEmployee.objects.filter(schedule=selected_schedule)
-        schedule_tasks = ScheduleTask.objects.filter(schedule=selected_schedule)
-        schedule_model = Schedule.objects.get(pk=selected_schedule)
-
-        context = {
-            'selected_schedule': selected_schedule,
-            'schedule_details': schedule_items,
-            'schedule_employees': schedule_employees,
-            'schedule_tasks': schedule_tasks,
-            'employees': employees,
-            'tasks': tasks,
-            'schedule_date': schedule_model.date,
-            'start_time': schedule_model.start_time,
-            'end_time': schedule_model.end_time,
-            'logged_data': getLoggedData(request)
-        }
-        return render(request, 'schedule/schedule_details2.html', context)
-    else:
-        form = ScheduleSelectionForm()
-
-    context = {'form': form,
-               'employees': employees,
-               'tasks': tasks,
-               'logged_data': getLoggedData(request)}
-    return render(request, 'schedule/schedule_details2.html', context)
+    from .planning_views import schedule_plan
+    return schedule_plan(request, schedule_id=schedule_id)
 
 
 @login_required
@@ -938,7 +861,15 @@ def add_or_edit_schedule_item(request, item_id=None):
     tasks = Task.objects.all()
 
     if request.method == 'POST':
-        schedule_id = request.POST.get('schedule')
+        schedule_id = request.POST.get('schedule', '')
+        if not schedule_id.isascii() or not schedule_id.isdecimal():
+            return HttpResponseBadRequest('TRT invalide.')
+        target = get_object_or_404(Schedule, pk=schedule_id)
+        if target.is_template:
+            from .navigation import ADMIN, role_for
+            if role_for(request.user) != ADMIN or target.schedule_name == 'Transfer_Schedule':
+                raise PermissionDenied
+            return HttpResponseBadRequest('Modifiez les TRT types dans leur éditeur dédié.')
         form = ScheduleItemAddEditForm(request.POST)
         if form.is_valid() and referer:
             schedule_item, assigned_delta = schedule_service.update_schedule_from_item(
@@ -1006,6 +937,8 @@ def generic_form_submission_view(request, form_class_name):
             model_form = form.save(commit=False)
             model_form.created_by = request.user
             transfer_data = json.loads(request.POST.get('transfer_data'))
+            # Operational forms must never write into a reusable TRT template.
+            get_object_or_404(Schedule, pk=transfer_data['schedule_id'], is_template=False)
             task = Task.objects.get(pk=transfer_data['task_id'])
             if isinstance(model_form, Reception):
                 employee = Employee.objects.filter(user=request.user).first()
@@ -1043,8 +976,9 @@ def generic_form_submission_view(request, form_class_name):
 
 
 def can_manage_trt(request):
-    """Use the manager roles already exposed in the TRT navigation."""
-    return request.user.groups.filter(name='Admin').exists() or bool(getLoggedData(request)['leader'])
+    """Use the same superuser, Admin and leader roles as TRT planning."""
+    from .navigation import MANAGERS, role_for
+    return role_for(request.user) in MANAGERS
 
 
 def can_manage_reception(request):
@@ -1058,6 +992,8 @@ def reception_assignment_error(form):
     item = ScheduleItem.objects.select_for_update().select_related(
         'schedule', 'task__progress_query', 'task__responsibility_level',
     ).get(pk=form.cleaned_data['employee1_schedule_item'].pk)
+    if item.schedule.is_template:
+        return 'Les formulaires de réception ne modifient pas les TRT types.'
     if item.employee_id:
         return 'Cette tâche a déjà été affectée. Actualisez le TRT avant de continuer.'
     configured_model = (item.task.progress_query.parameters or {}).get('model_name') if item.task.progress_query else None
@@ -1473,9 +1409,9 @@ def get_query_results(query, parameters):
 def update_schedule_now(request, schedule_id=None):
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])
-    schedule = get_object_or_404(Schedule, pk=schedule_id)
+    schedule = get_object_or_404(Schedule, pk=schedule_id, is_template=False)
     logged_data = getLoggedData(request)
-    can_manage = logged_data['leader'] or request.user.groups.filter(name='Admin').exists()
+    can_manage = can_manage_trt(request)
     mine_only = request.POST.get('scope') == 'mine' or not can_manage
     employee = logged_data['employee'] if mine_only else None
     if mine_only and not employee:
@@ -1495,10 +1431,11 @@ def update_schedule_now(request, schedule_id=None):
     return redirect(request.META.get('HTTP_REFERER') or 'home')
 
 
+@login_required
 def finalize_schedule(request, schedule_id):
     referer = request.META.get('HTTP_REFERER')
     unfinished_tasks = {}
-    schedule = get_object_or_404(Schedule, id=schedule_id)
+    schedule = get_object_or_404(Schedule, id=schedule_id, is_template=False)
     unfinished_items = ScheduleItem.objects.filter(schedule=schedule, progression_rate__lt=100, task__transfer=True)
 
     if unfinished_items.exists():
@@ -1528,8 +1465,9 @@ def finalize_schedule(request, schedule_id):
     return redirect(referer)
 
 
+@login_required
 def handle_unfinished_tasks(request, schedule_id):
-    schedule = get_object_or_404(Schedule, id=schedule_id)
+    schedule = get_object_or_404(Schedule, id=schedule_id, is_template=False)
     unfinished_tasks = request.session.get('unfinished_tasks', {})
 
     task_details = []
@@ -1600,12 +1538,18 @@ def handle_unfinished_tasks(request, schedule_id):
         })
 
 
+@login_required
 def import_tasks(request):
     referer = request.META.get('HTTP_REFERER')
     if request.method == 'POST':
         actual_schedule_id = request.POST.get('actual_schedule')
-        actual_schedule = Schedule.objects.get(pk=actual_schedule_id)
+        actual_schedule = get_object_or_404(Schedule, pk=actual_schedule_id, is_template=False)
         selected_items = request.POST.getlist('transfer_items')
+        # Only the internal transfer queue may be consumed by this action.
+        if ScheduleItem.objects.filter(pk__in=selected_items).exclude(
+            schedule__is_template=True, schedule__schedule_name='Transfer_Schedule'
+        ).exists():
+            raise PermissionDenied
 
         for item_id in selected_items:
             item = ScheduleItem.objects.get(id=item_id)
@@ -1906,6 +1850,8 @@ def actual_schedule_details(request, schedule_id=None):
 
     if sched_data:
         sched_data['schedule_employees'] = kpi_service.annotate_schedule_employee_scores(schedule, sched_data['schedule_employees'], request.user)
+        sched_data['schedule_tasks'] = list(sched_data['schedule_tasks'].select_related('task'))
+        context['planned_unassigned_work'] = schedule_service.planned_unassigned_work(sched_data['schedule_tasks'])
         context.update(sched_data)
         context['missing_reception_followups'] = schedule_service.missing_reception_followups(schedule)
 
@@ -1921,6 +1867,8 @@ def restore_reception_followup(request, reception_id):
         raise PermissionDenied
     reception = get_object_or_404(Reception.objects.select_for_update().select_related('related_item__schedule'), pk=reception_id)
     item = reception.related_item
+    if item and item.schedule.is_template:
+        raise PermissionDenied
     if not item or (item.progression_rate or 0) < 100 or not schedule_service.reception_identifier(item.task_identifier):
         messages.error(request, 'La réception doit être terminée et comporter une référence avant de créer l’étape suivante.')
     elif schedule_service.generate_group_task(item, item.schedule):
@@ -2024,6 +1972,8 @@ def schedule_details(request, schedule_id=None):
 
     if sched_data:
         sched_data['schedule_employees'] = kpi_service.annotate_schedule_employee_scores(schedule, sched_data['schedule_employees'], request.user)
+        sched_data['schedule_tasks'] = list(sched_data['schedule_tasks'].select_related('task'))
+        context['planned_unassigned_work'] = schedule_service.planned_unassigned_work(sched_data['schedule_tasks'])
         context.update(sched_data)
 
     return render(request, 'schedule/schedule_details.html', context)

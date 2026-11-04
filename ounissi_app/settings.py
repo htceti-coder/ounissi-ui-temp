@@ -33,6 +33,8 @@ ALLOWED_HOSTS = ['*']
 # Keep a finite field limit, while allowing a practical number of custom KPIs.
 # Django's request-body memory limit remains in effect.
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+# A single bounded JSON plan can contain many employees, tasks and assignments.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 16 * 1024 * 1024
 
 
 # Application definition
