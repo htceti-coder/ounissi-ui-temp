@@ -15,7 +15,7 @@
       </div>
       <p class="kpi-card__value"><strong>{{ card.value }}</strong>{% if card.unit %} <span>{{ card.unit }}</span>{% endif %}</p>
       {% if card.bar_value is not None %}
-      <progress class="kpi-progress" value="{{ card.bar_value|unlocalize }}" max="100" aria-label="{{ card.label }}" aria-valuetext="{{ card.value }} pour cent">{{ card.value }} %</progress>
+      <progress class="kpi-progress" value="{{ card.bar_value|unlocalize }}" max="100" aria-label="{{ card.label }}" aria-valuetext="{% if card.bar_text %}{{ card.bar_text }}{% else %}{{ card.value }} pour cent{% endif %}">{% if card.bar_text %}{{ card.bar_text }}{% else %}{{ card.value }} %{% endif %}</progress>
       {% endif %}
       {% if card.detail %}<p class="kpi-card__detail">{{ card.detail }}</p>{% endif %}
       {% if card.warning %}<p class="kpi-card__warning"><i class="fa fa-info-circle" aria-hidden="true"></i> {{ card.warning }}</p>{% endif %}

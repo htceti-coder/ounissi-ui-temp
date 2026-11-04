@@ -1,0 +1,12 @@
+{% if planned_unassigned_work %}
+<section class="app-alert app-alert--warning" aria-label="Travail prévu non affecté">
+  <div>
+    <strong>{{ planned_unassigned_work|length }} tâche(s) comportent du temps prévu sans affectation.</strong>
+    <p>Ces durées restent des besoins de planification : elles ne sont affectées à aucun employé. Affectez-les manuellement si nécessaire. Les étapes de réception sans employé sont suivies séparément.</p>
+    <details><summary>Voir les durées non affectées</summary>
+      <ul style="max-height: 15rem; overflow: auto;">{% for entry in planned_unassigned_work|slice:":50" %}<li>{{ entry.task.task_name }} : {{ entry.remaining }}</li>{% endfor %}</ul>
+      {% if planned_unassigned_work|length > 50 %}<p>50 premières tâches affichées. Les totaux complets sont disponibles dans l’onglet Tâches.</p>{% endif %}
+    </details>
+  </div>
+</section>
+{% endif %}

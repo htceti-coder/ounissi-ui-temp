@@ -13,9 +13,9 @@ from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import Employee, Team
-from .kpi_registry import settings_for
+from .kpi_registry import PERCENT_CALCULATIONS, settings_for
 from .kpi_scoring import seconds, summarize_items
-from .models import Schedule, ScheduleItem, Timesheet
+from .models import CustomKPI, Schedule, ScheduleItem, Timesheet
 from .navigation import ADMIN, LEADER, role_for
 
 MONTH_RE = re.compile(r'^[0-9]{4}-(0[1-9]|1[0-2])$')
@@ -324,6 +324,115 @@ def _personal_task(item):
             'bar_value': float(min(Decimal(100), rate)) if rate is not None else 0}
 
 
+def _is_automatic(item):
+    return bool(item.task.progress_query_id and item.task.progress_query.query != 'N/A')
+
+
+def _custom_card(card, custom, items, no_scope):
+    """Calculate one custom KPI from already-authorised saved schedule items.
+
+    Task and query selectors are a union, not additive components: a task
+    matching both is counted once. Filters are then applied together. Never
+    execute a Query, use the SQL text as data, or expand an empty selection.
+    """
+    if no_scope:
+        card['detail'] = no_scope
+        return
+    if custom.selection not in CustomKPI.Selection.values or custom.kind not in CustomKPI.Kind.values or custom.state not in CustomKPI.State.values:
+        card['detail'] = 'Configuration de l’indicateur invalide.'
+        return
+    task_ids = {task.pk for task in custom.tasks.all()}
+    query_ids = {query.pk for query in custom.queries.all()}
+    if custom.selection == CustomKPI.Selection.SELECTED and not (task_ids or query_ids):
+        card['detail'] = 'Aucune tâche ou requête liée sélectionnée. Vérifiez la configuration.'
+        return
+
+    selected, unknown_states = [], 0
+    for item in items:
+        automatic = _is_automatic(item)
+        # A query selector only identifies automatic tasks. A saved query may
+        # subsequently become the legacy N/A sentinel for a manual task; it
+        # must not keep matching through that selector after the change.
+        query_matches = automatic and item.task.progress_query_id in query_ids
+        if custom.selection == CustomKPI.Selection.SELECTED and item.task_id not in task_ids and not query_matches:
+            continue
+        if custom.priority is not None and item.task.priority != custom.priority:
+            continue
+        if custom.kind == CustomKPI.Kind.MANUAL and automatic:
+            continue
+        if custom.kind == CustomKPI.Kind.AUTOMATIC and not automatic:
+            continue
+        if custom.state != CustomKPI.State.ALL:
+            state = summarize_items([item])
+            if not state.available:
+                unknown_states += 1
+                continue
+            completed = bool(state.completed_count)
+            if (custom.state == CustomKPI.State.COMPLETE) != completed:
+                continue
+        selected.append(item)
+    if unknown_states:
+        card['detail'] = f'{unknown_states} tâche(s) ont une progression invalide ou manquante ; leur état ne peut pas être déterminé.'
+        return
+    if not selected:
+        card['detail'] = 'Aucune tâche affectée ne correspond aux règles sur cette période.'
+        return
+
+    calculation = custom.calculation
+    count = len(selected)
+    value = None
+    unit = ''
+    if calculation == CustomKPI.Calculation.ASSIGNED_TASKS:
+        value, unit = Decimal(count), 'tâche(s)'
+    elif calculation == CustomKPI.Calculation.ASSIGNED_TIME:
+        durations = [seconds(item.assigned_time) for item in selected]
+        if any(duration is None or duration <= 0 for duration in durations):
+            card['detail'] = 'Au moins une durée affectée est invalide ou manquante.'
+            return
+        value = sum(durations, Decimal(0))
+    elif calculation == CustomKPI.Calculation.SAVED_LINES:
+        if any(not _is_automatic(item) or not isinstance(item.progress_lines, int) or item.progress_lines < 0 for item in selected):
+            card['detail'] = 'Lignes indisponibles : seules les tâches automatiques avec un nombre de lignes valide peuvent être utilisées.'
+            return
+        value, unit = Decimal(sum(item.progress_lines for item in selected)), 'ligne(s)'
+    else:
+        summary = summarize_items(selected)
+        if not summary.available:
+            card['detail'] = _missing_score(summary, None)
+            return
+        if calculation == CustomKPI.Calculation.WEIGHTED_PROGRESS:
+            value, unit = summary.percentage, '%'
+        elif calculation == CustomKPI.Calculation.WEIGHTED_SCORE:
+            value, unit = summary.achieved_points, 'points'
+        elif calculation == CustomKPI.Calculation.COMPLETED_TASKS:
+            value, unit = Decimal(summary.completed_count), 'tâche(s)'
+        elif calculation == CustomKPI.Calculation.COMPLETION_RATE:
+            value, unit = Decimal(summary.completed_count) * 100 / count, '%'
+        elif calculation == CustomKPI.Calculation.AVERAGE_PROGRESS:
+            value = sum((summarize_items([item]).percentage for item in selected), Decimal(0)) / count
+            unit = '%'
+    if value is None:
+        card['detail'] = 'Calcul de l’indicateur invalide.'
+        return
+
+    value_label = format_duration(value) if calculation == CustomKPI.Calculation.ASSIGNED_TIME else format_number(value)
+    card.update(value=value_label, unit=unit, detail=f'{count} tâche(s) retenue(s) sur la période sélectionnée.')
+    if calculation == CustomKPI.Calculation.WEIGHTED_PROGRESS:
+        card['detail'] = f'{format_number(summary.achieved_points)} / {format_number(summary.assigned_points)} points · période sélectionnée'
+    elif calculation == CustomKPI.Calculation.AVERAGE_PROGRESS:
+        card['detail'] += ' Moyenne simple, non pondérée.'
+    target = custom.target if custom.target is not None else (Decimal(100) if calculation in PERCENT_CALCULATIONS else None)
+    if target is not None and target > 0:
+        target_label = format_duration(target) if calculation == CustomKPI.Calculation.ASSIGNED_TIME else format_number(target)
+        card['detail'] += f' Objectif : {target_label}{" " + unit if unit else ""}.'
+        if card['presentation'] == 'bar':
+            progress = value * 100 / target
+            card['bar_value'] = float(min(Decimal(100), max(Decimal(0), progress)))
+            card['bar_text'] = f'{value_label}{" " + unit if unit else ""} sur un objectif de {target_label}{" " + unit if unit else ""}'
+            if progress > 100:
+                card['warning'] = 'La barre est limitée à 100 % ; le résultat affiché ne l’est pas.'
+
+
 def snapshot(user, surface, period=None, schedule_override=...):
     """Return one scoped, presentation-filtered snapshot for a signed-in user."""
     if surface not in ('live', 'dashboard'):
@@ -339,7 +448,7 @@ def snapshot(user, surface, period=None, schedule_override=...):
 
     team = None
     members = []
-    if employee and role in (LEADER, ADMIN) and any(key.startswith('team_') for key in keys):
+    if employee and role in (LEADER, ADMIN) and any(row['definition'].group == 'team' for row in settings):
         team = Team.objects.filter(leader=employee).prefetch_related('employees').first()
         if team:
             members = list(team.employees.all())
@@ -348,8 +457,10 @@ def snapshot(user, surface, period=None, schedule_override=...):
             members.sort(key=lambda member: ((member.last_name or '').casefold(),
                                              (member.first_name or '').casefold(), member.pk))
     member_ids = {member.pk for member in members}
-    personal_tasks_needed = surface == 'live' or bool(keys & {'my_progress', 'my_score', 'my_tasks', 'my_assigned'})
-    team_tasks_needed = bool(keys & {'team_progress', 'team_score', 'team_tasks'})
+    personal_custom = any(row['definition'].custom and row['definition'].group != 'team' for row in settings)
+    team_custom = any(row['definition'].custom and row['definition'].group == 'team' for row in settings)
+    personal_tasks_needed = surface == 'live' or personal_custom or bool(keys & {'my_progress', 'my_score', 'my_tasks', 'my_assigned'})
+    team_tasks_needed = team_custom or bool(keys & {'team_progress', 'team_score', 'team_tasks'})
     task_scope = Q(pk__in=[])
     if employee and personal_tasks_needed:
         task_scope |= Q(employee_id=employee.pk)
@@ -394,7 +505,10 @@ def snapshot(user, surface, period=None, schedule_override=...):
                 'presentation': setting['presentation'], 'group': 'team' if definition.group == 'team' else 'personal',
                 'value': '—', 'unit': '',
                 'detail': '', 'warning': '', 'rows': []}
-        if key == 'my_progress':
+        if definition.custom:
+            custom_items = team_items if definition.group == 'team' else own_items
+            _custom_card(card, definition.custom, custom_items, team_missing if definition.group == 'team' else own_missing)
+        elif key == 'my_progress':
             _score_card(card, own_score, own_missing)
         elif key == 'my_score':
             _score_card(card, own_score, own_missing, score=True)

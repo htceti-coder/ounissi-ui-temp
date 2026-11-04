@@ -1,0 +1,10 @@
+{
+  "name": "ounissi-ui-tests",
+  "private": true,
+  "scripts": {
+    "test:js": "node tests/bulk_manual_progress.test.js && node tests/kpi_live.test.js && node tests/line_allocation.test.js && node tests/task_form_modal.test.js && node tests/schedule_planner.test.js && node tests/schedule_editor.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0"
+  }
+}

@@ -53,16 +53,98 @@ class CustomUserAdmin(UserAdmin):
 class XpertServerAdmin(admin.ModelAdmin):
     list_display = ['name', 'active']
 
-# class ScheduleAdmin(admin.ModelAdmin):
-#     list_display = ['name', 'is_template', 'date']
+# Django model permissions alone must not bypass TRT template authorship.
+def _trt_role(request):
+    from ounissi_app.navigation import role_for
+    return role_for(request.user)
+
+
+def _trt_admin(request):
+    from ounissi_app.navigation import ADMIN
+    return _trt_role(request) == ADMIN
+
+
+class ScheduleAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        from ounissi_app.navigation import MANAGERS
+        return _trt_role(request) in MANAGERS and super().has_add_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        if obj is not None and obj.is_template and not _trt_admin(request):
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and obj.is_template and not _trt_admin(request):
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = tuple(super().get_readonly_fields(request, obj))
+        return fields if _trt_admin(request) else fields + ('is_template',)
+
+    def save_model(self, request, obj, form, change):
+        if obj.is_template and not _trt_admin(request):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        super().save_model(request, obj, form, change)
+
+    def delete_queryset(self, request, queryset):
+        if not _trt_admin(request) and queryset.filter(is_template=True).exists():
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        super().delete_queryset(request, queryset)
+
+
+class ScheduleRowAdmin(admin.ModelAdmin):
+    def has_change_permission(self, request, obj=None):
+        if obj is not None and obj.schedule.is_template and not _trt_admin(request):
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and obj.schedule.is_template and not _trt_admin(request):
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'schedule' and not _trt_admin(request):
+            kwargs['queryset'] = ounissi_app.models.Schedule.objects.filter(is_template=False)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        if obj.schedule.is_template and not _trt_admin(request):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        super().save_model(request, obj, form, change)
+
+    def delete_queryset(self, request, queryset):
+        if not _trt_admin(request) and queryset.filter(schedule__is_template=True).exists():
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        super().delete_queryset(request, queryset)
+
+
+class QueryAdmin(admin.ModelAdmin):
+    def has_view_permission(self, request, obj=None):
+        return _trt_admin(request) and super().has_view_permission(request, obj)
+
+    def has_add_permission(self, request):
+        return _trt_admin(request) and super().has_add_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        return _trt_admin(request) and super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return _trt_admin(request) and super().has_delete_permission(request, obj)
 
 admin.site.register(Rank)
 admin.site.register(Team, TeamAdmin)
 admin.site.register(CustomUser, CustomUserAdmin)
-admin.site.register(ounissi_app.models.ScheduleItem)
-admin.site.register(ounissi_app.models.Schedule)
-admin.site.register(ounissi_app.models.ScheduleEmployee)
-admin.site.register(ounissi_app.models.ScheduleTask)
+admin.site.register(ounissi_app.models.ScheduleItem, ScheduleRowAdmin)
+admin.site.register(ounissi_app.models.Schedule, ScheduleAdmin)
+admin.site.register(ounissi_app.models.ScheduleEmployee, ScheduleRowAdmin)
+admin.site.register(ounissi_app.models.ScheduleTask, ScheduleRowAdmin)
 admin.site.register(ounissi_app.models.Task)
 admin.site.register(ounissi_app.models.Terminal)
 admin.site.register(ounissi_app.models.SalaryItem, SalaryItemAdmin)
@@ -73,7 +155,7 @@ admin.site.register(ounissi_app.models.Salary)
 admin.site.register(ounissi_app.models.SalaryDetail)
 admin.site.register(ounissi_app.models.Shift)
 admin.site.register(ounissi_app.models.TaskType)
-admin.site.register(ounissi_app.models.Query)
+admin.site.register(ounissi_app.models.Query, QueryAdmin)
 admin.site.register(ounissi_app.models.Reception)
 admin.site.register(ounissi_app.models.TaskGeneration)
 admin.site.register(ounissi_app.models.Saisie)

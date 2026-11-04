@@ -7,11 +7,27 @@
     <h1>Configuration des indicateurs</h1>
     <p>Pour chaque rôle, choisissez les indicateurs, leur emplacement, leur présentation et leur ordre. Un nombre plus petit apparaît en premier.</p>
   </div>
+  <a class="btn btn-primary" href="{% url 'create_custom_kpi' %}"><i class="fa fa-plus" aria-hidden="true"></i> Créer un indicateur</a>
 </header>
 <div class="app-alert app-alert--info" role="note">
   <i class="fa fa-info-circle" aria-hidden="true"></i>
   <span>Les cartes relisent les données enregistrées, sans lancer de requête Xpert ni importer le pointage. La visibilité ne donne pas accès aux données d’une autre équipe. Les administrateurs ne voient les indicateurs d’équipe que s’ils dirigent une équipe.</span>
 </div>
+<section class="kpi-definitions" aria-labelledby="custom-kpis-title">
+  <div class="kpi-definitions__header"><div><p class="settings-eyebrow">Mesures sur mesure</p><h2 id="custom-kpis-title">Indicateurs personnalisés</h2><p>Créez ou modifiez les calculs, puis choisissez leur visibilité dans la matrice ci-dessous.</p></div></div>
+  {% if custom_kpis %}
+  <div class="kpi-definition-list">
+    {% for kpi in custom_kpis %}
+    <article class="kpi-definition" data-custom-kpi="{{ kpi.pk }}">
+      <div class="kpi-definition__icon"><i class="fa fa-bar-chart" aria-hidden="true"></i></div>
+      <div class="kpi-definition__body"><strong>{{ kpi.name }}</strong><small>{{ kpi.get_scope_display }} · {{ kpi.get_calculation_display }} · version {{ kpi.revision }}</small><span class="kpi-definition__status{% if not kpi.is_active %} kpi-definition__status--inactive{% endif %}">{% if kpi.is_active %}Actif{% else %}Désactivé{% endif %}</span></div>
+      <a class="btn btn-outline-secondary" href="{% url 'edit_custom_kpi' kpi_id=kpi.pk %}" aria-label="Modifier {{ kpi.name }}">Modifier</a>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}<p class="kpi-definitions__empty">Aucun indicateur personnalisé pour le moment.</p>{% endif %}
+</section>
+<div class="kpi-visibility-intro"><p class="settings-eyebrow">Audience et emplacement</p><h2>Choisir les indicateurs à afficher</h2><p>Les nouveaux indicateurs sont masqués par défaut. Activez chaque variante pour les rôles et emplacements souhaités.</p></div>
 <form method="post" class="kpi-settings-form">
   {% csrf_token %}
   {% for group in kpi_settings_groups %}
@@ -23,7 +39,7 @@
         <tbody>
           {% for row in group.rows %}
           <tr>
-            <th scope="row"><strong>{{ row.definition.label }}</strong><small>{{ row.definition.description }}</small><input type="hidden" name="row_{{ row.prefix }}" value="1"></th>
+            <th scope="row"><strong>{{ row.definition.label }}</strong><small>{{ row.definition.description }}</small><input type="hidden" name="row_{{ row.prefix }}" value="1">{% if row.definition.custom %}<input type="hidden" name="revision_{{ row.prefix }}" value="{{ row.definition.custom.revision }}">{% endif %}</th>
             <td><input type="checkbox" name="live_{{ row.prefix }}" value="1" aria-label="{{ row.definition.label }}, {{ group.label }} : accueil" {% if row.show_live %}checked{% endif %}></td>
             <td><input type="checkbox" name="dashboard_{{ row.prefix }}" value="1" aria-label="{{ row.definition.label }}, {{ group.label }} : page KPI" {% if row.show_dashboard %}checked{% endif %}></td>
             <td><select name="presentation_{{ row.prefix }}" aria-label="Présentation de {{ row.definition.label }}, {{ group.label }}">{% for value, label in row.choices %}<option value="{{ value }}" {% if row.presentation == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>

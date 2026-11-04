@@ -1,0 +1,87 @@
+{% extends 'base2.html' %}
+{% block title %}{% if custom_kpi %}Modifier{% else %}Créer{% endif %} un indicateur{% endblock %}
+{% block content %}
+<header class="settings-page-header kpi-builder-header">
+  <div>
+    <p class="settings-eyebrow">Administration · Indicateurs</p>
+    <h1>{% if custom_kpi %}Modifier l’indicateur{% else %}Créer un indicateur{% endif %}</h1>
+    <p>Définissez le calcul à partir des tâches et de leurs données déjà enregistrées.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'configure_kpis' %}"><i class="fa fa-arrow-left" aria-hidden="true"></i> Retour aux indicateurs</a>
+</header>
+{% if form.non_field_errors %}<div class="app-alert app-alert--warning" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+<form method="post" class="kpi-builder" novalidate>
+  {% csrf_token %}{{ form.revision }}
+  {% for error in form.revision.errors %}<p class="kpi-builder-error" role="alert">{{ error }}</p>{% endfor %}
+  <div class="kpi-builder-layout">
+    <div class="kpi-builder-main">
+      <section class="kpi-builder-section" aria-labelledby="kpi-basics-title">
+        <div class="kpi-builder-section__heading"><span>01</span><div><h2 id="kpi-basics-title">Informations et périmètre</h2><p>Nommez l’indicateur et choisissez les données qu’il décrit.</p></div></div>
+        <div class="kpi-builder-grid">
+          {% include 'settings/_kpi_field.html' with field=form.name %}
+          {% include 'settings/_kpi_field.html' with field=form.scope %}
+          <div class="kpi-builder-field--wide">{% include 'settings/_kpi_field.html' with field=form.description %}</div>
+        </div>
+      </section>
+      <section class="kpi-builder-section" aria-labelledby="kpi-sources-title">
+        <div class="kpi-builder-section__heading"><span>02</span><div><h2 id="kpi-sources-title">Tâches et requêtes liées</h2><p>Choisissez toutes les tâches, ou combinez une ou plusieurs sélections.</p></div></div>
+        {% include 'settings/_kpi_field.html' with field=form.selection %}
+        <div class="kpi-builder-grid kpi-builder-grid--sources">
+          {% include 'settings/_kpi_field.html' with field=form.tasks %}
+          {% include 'settings/_kpi_field.html' with field=form.queries %}
+        </div>
+        <p class="kpi-builder-note"><i class="fa fa-info-circle" aria-hidden="true"></i> Les tâches choisies et celles liées aux requêtes sont réunies une seule fois. Les requêtes ne sont pas exécutées ici.</p>
+      </section>
+      <section class="kpi-builder-section" aria-labelledby="kpi-rules-title">
+        <div class="kpi-builder-section__heading"><span>03</span><div><h2 id="kpi-rules-title">Règles et calcul</h2><p>Les règles sélectionnées s’appliquent ensemble aux tâches retenues.</p></div></div>
+        <div class="kpi-builder-grid kpi-builder-grid--three">
+          {% include 'settings/_kpi_field.html' with field=form.priority %}
+          {% include 'settings/_kpi_field.html' with field=form.kind %}
+          {% include 'settings/_kpi_field.html' with field=form.state %}
+        </div>
+        <div class="kpi-builder-grid">
+          {% include 'settings/_kpi_field.html' with field=form.calculation %}
+          {% include 'settings/_kpi_field.html' with field=form.target %}
+        </div>
+      </section>
+      <section class="kpi-builder-section" aria-labelledby="kpi-publish-title">
+        <div class="kpi-builder-section__heading"><span>04</span><div><h2 id="kpi-publish-title">Disponibilité</h2><p>Un nouvel indicateur est masqué tant que vous n’avez pas choisi où l’afficher.</p></div></div>
+        <div class="kpi-builder-toggle"><label for="{{ form.is_active.id_for_label }}">{{ form.is_active }} {{ form.is_active.label }}</label><p class="kpi-builder-help" id="{{ form.is_active.auto_id }}_helptext">{{ form.is_active.help_text }}</p>{% for error in form.is_active.errors %}<p class="kpi-builder-error" role="alert">{{ error }}</p>{% endfor %}</div>
+      </section>
+      <div class="kpi-builder-actions">
+        <button type="submit" class="btn btn-primary"><i class="fa fa-check" aria-hidden="true"></i> Enregistrer l’indicateur</button>
+        <a class="btn btn-outline-secondary" href="{% url 'configure_kpis' %}">Annuler</a>
+      </div>
+    </div>
+    <aside class="kpi-builder-aside" aria-label="À propos des indicateurs">
+      <div class="kpi-builder-aside__icon"><i class="fa fa-shield" aria-hidden="true"></i></div>
+      <h2>Contrôle administrateur</h2>
+      <p>Après l’enregistrement, choisissez pour chaque rôle l’accueil, la page KPI et la présentation dans la matrice de visibilité.</p>
+      <hr>
+      <strong>Données enregistrées uniquement</strong>
+      <p>Aucune requête Xpert ni import du terminal ne sont lancés par ces indicateurs.</p>
+      <strong>Périodes passées</strong>
+      <p>Une modification recalcule aussi les périodes historiques avec la configuration actuelle.</p>
+      {% if custom_kpi %}<small>Version {{ custom_kpi.revision }} · dernière modification {{ custom_kpi.updated_at|date:'d/m/Y H:i' }}</small>{% endif %}
+    </aside>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+  // Chosen hides the native select, so keep its label and validation help on
+  // the generated search field. Without Chosen the native controls stay usable.
+  document.addEventListener('ounissi:ui-ready', function () {
+    document.querySelectorAll('.kpi-builder select.multi_select').forEach(function (source) {
+      var chosen = document.getElementById(source.id + '_chosen');
+      var input = chosen && chosen.querySelector('input.chosen-search-input');
+      var label = source.labels && source.labels[0];
+      if (!input) return;
+      if (label) input.setAttribute('aria-label', label.textContent.trim());
+      ['aria-describedby', 'aria-invalid'].forEach(function (attribute) {
+        if (source.hasAttribute(attribute)) input.setAttribute(attribute, source.getAttribute(attribute));
+      });
+    });
+  }, { once: true });
+</script>
+{% endblock %}

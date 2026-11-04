@@ -6,3 +6,6 @@ __pycache__/
 
 # Local Django database
 db.sqlite3
+
+# JavaScript test dependencies
+node_modules/
